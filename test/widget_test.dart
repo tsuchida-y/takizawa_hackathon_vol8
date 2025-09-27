@@ -5,26 +5,37 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:takizawa_hackathon_vol8/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('Main app displays settings screen', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Verify that the settings screen is displayed.
+    expect(find.text('設定'), findsOneWidget);
+    expect(find.text('アカウント'), findsOneWidget);
+    expect(find.text('通知'), findsOneWidget);
+    expect(find.text('SNS連携'), findsOneWidget);
+    expect(find.text('お知らせ'), findsOneWidget);
+    expect(find.text('ヘルプ'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('Settings items are tappable', (WidgetTester tester) async {
+    // Build our app and trigger a frame.
+    await tester.pumpWidget(const MyApp());
+
+    // Find and tap the account setting.
+    final accountSetting = find.text('アカウント');
+    expect(accountSetting, findsOneWidget);
+    
+    // Verify tapping doesn't cause errors.
+    await tester.tap(accountSetting);
     await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    
+    // The app should still be running without errors.
+    expect(find.text('設定'), findsOneWidget);
   });
 }
