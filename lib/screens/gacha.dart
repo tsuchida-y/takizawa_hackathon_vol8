@@ -1,7 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../pointget.dart';
+import 'package:takizawa_hackathon_vol8/pointget.dart';
+
 
 /// ガチャの景品レアリティを定義する列挙型
 /// 各レアリティは排出確率と表示色が異なり、ユーザーの期待値を決定する重要な要素
@@ -12,7 +13,6 @@ enum GachaRarity {
   ultraRare, // ウルトラレア（最高レアリティ、極低確率で排出）
 }
 
-/// ガチャの景品情報を格納するクラス
 /// 各景品のメタデータと排出確率を管理する
 class GachaItem {
   final String id; // 景品の一意識別子
@@ -555,7 +555,7 @@ class ResultModal extends StatelessWidget {
   }
 }
 
-/// ガチャ画面
+/// メインのガチャ画面
 class GachaScreen extends ConsumerStatefulWidget {
   const GachaScreen({super.key});
 
@@ -574,51 +574,28 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
+      appBar: AppBar(
+        title: const Text(
+          'ガチャ',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => _showSettingsDialog(context),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            // ヘッダー
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // 詳細ボタン（排出確率表示）
-                  IconButton(
-                    onPressed: () => _showGachaDetailsDialog(context),
-                    icon: const Icon(Icons.info_outline),
-                    tooltip: '排出確率詳細',
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'ガチャ',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  // 設定ボタン
-                  IconButton(
-                    onPressed: () => _showSettingsDialog(context),
-                    icon: const Icon(Icons.settings),
-                    tooltip: '設定',
-                  ),
-                ],
-              ),
-            ),
-
+            // コンテンツ領域
             Expanded(
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -823,8 +800,6 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
         .map((item) => GachaResult(item: item, timestamp: DateTime.now()))
         .toList();
 
-    // 結果を履歴に追加（省略）
-
     _lastResults = results; // 全ての結果を表示用に保存
   }
 
@@ -853,156 +828,6 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
       builder: (context) => ResultModal(
         results: results,
         onClose: () => Navigator.of(context).pop(),
-      ),
-    );
-  }
-
-  /// ガチャ詳細ダイアログを表示（排出確率と景品内容）
-  void _showGachaDetailsDialog(BuildContext context) {
-    final gachaItems = ref.read(gachaItemsProvider);
-    final gachaConfig = ref.read(gachaConfigProvider);
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          constraints: const BoxConstraints(maxHeight: 600, maxWidth: 400),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ダイアログタイトル
-              const Text(
-                'ガチャ詳細情報',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-
-              // ガチャ料金情報
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      '料金',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Text('1回: ${gachaConfig.singleCost}pt'),
-                        Text('10回: ${gachaConfig.multiCost}pt'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // 排出確率表
-              const Text(
-                '排出確率・景品一覧',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: gachaItems.length,
-                  itemBuilder: (context, index) {
-                    final item = gachaItems[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _getRarityColor(item.rarity).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _getRarityColor(item.rarity).withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          // レアリティインジケーター
-                          Container(
-                            width: 4,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: _getRarityColor(item.rarity),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-
-                          // 景品情報
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.name,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  _getRarityText(item.rarity),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _getRarityColor(item.rarity),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // 確率表示
-                          Text(
-                            '${(item.probability * 100).toStringAsFixed(1)}%',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _getRarityColor(item.rarity),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // 閉じるボタン
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('閉じる'),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
