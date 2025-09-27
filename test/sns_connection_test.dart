@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:takizawa_hackathon_vol8/sns_connection.dart';
+import 'package:takizawa_hackathon_vol8/screens/settings_screen/sns_connection.dart';
 
 void main() {
   group('SNS連携モデルのテスト', () {

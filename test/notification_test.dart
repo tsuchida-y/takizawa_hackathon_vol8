@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:takizawa_hackathon_vol8/notification.dart';
+import 'package:takizawa_hackathon_vol8/screens/settings_screen/notification.dart';
 
 void main() {
   group('通知設定モデルのテスト', () {

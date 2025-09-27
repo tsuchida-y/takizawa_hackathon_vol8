@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:takizawa_hackathon_vol8/help.dart';
+import 'package:takizawa_hackathon_vol8/screens/settings_screen/help.dart';
 
 void main() {
   group('ヘルプ機能のモデルテスト', () {

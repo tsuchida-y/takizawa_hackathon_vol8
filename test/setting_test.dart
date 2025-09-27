@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:takizawa_hackathon_vol8/setting.dart';
+import 'package:takizawa_hackathon_vol8/screens/setting.dart';
 
 void main() {
   group('SettingItem', () {
