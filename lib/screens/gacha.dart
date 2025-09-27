@@ -1,7 +1,63 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:takizawa_hackathon_vol8/pointget.dart';
+
+// ===== ポイントシステム =====
+
+/// ポイント管理の状態を定義するクラス
+/// アプリ全体で共有されるポイント系システムの状態管理
+class PointState {
+  final int currentPoints; // ユーザーの現在所持ポイント
+  final bool isLoading; // ポイント操作中のローディング状態
+  final String? errorMessage; // エラーメッセージ（オプション）
+
+  const PointState({
+    this.currentPoints = 1000, // 初期ポイント
+    this.isLoading = false,
+    this.errorMessage,
+  });
+
+  PointState copyWith({
+    int? currentPoints,
+    bool? isLoading,
+    String? errorMessage,
+  }) {
+    return PointState(
+      currentPoints: currentPoints ?? this.currentPoints,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
+}
+
+/// ポイント操作を管理するコントローラー
+class PointController extends StateNotifier<PointState> {
+  PointController() : super(const PointState());
+
+  /// ポイントを追加する
+  void addPoints(int points) {
+    state = state.copyWith(currentPoints: state.currentPoints + points);
+  }
+
+  /// ポイントを消費する（ガチャ用）
+  bool consumePoints(int points) {
+    if (state.currentPoints >= points) {
+      state = state.copyWith(currentPoints: state.currentPoints - points);
+      return true;
+    }
+    return false;
+  }
+
+  /// エラーメッセージをクリア
+  void clearError() {
+    state = state.copyWith(errorMessage: null);
+  }
+}
+
+/// ポイントプロバイダー
+final pointProvider = StateNotifierProvider<PointController, PointState>((ref) {
+  return PointController();
+});
 
 
 /// ガチャの景品レアリティを定義する列挙型
@@ -856,33 +912,4 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
     );
   }
 
-  /// レアリティに対応する色を取得するヘルパーメソッド
-  /// ユーザー体験向上のため、視覚的にレアリティを区別する
-  Color _getRarityColor(GachaRarity rarity) {
-    switch (rarity) {
-      case GachaRarity.common:
-        return Colors.grey; // コモン: グレー（一般的）
-      case GachaRarity.rare:
-        return Colors.blue; // レア: ブルー（珍しい）
-      case GachaRarity.superRare:
-        return Colors.purple; // スーパーレア: パープル（稀少）
-      case GachaRarity.ultraRare:
-        return Colors.orange; // ウルトラレア: オレンジ（最高級）
-    }
-  }
-
-  /// レアリティに対応するテキストを取得するヘルパーメソッド
-  /// 日本語での表示用レアリティ名を提供
-  String _getRarityText(GachaRarity rarity) {
-    switch (rarity) {
-      case GachaRarity.common:
-        return 'コモン';
-      case GachaRarity.rare:
-        return 'レア';
-      case GachaRarity.superRare:
-        return 'スーパーレア';
-      case GachaRarity.ultraRare:
-        return 'ウルトラレア';
-    }
-  }
 }
