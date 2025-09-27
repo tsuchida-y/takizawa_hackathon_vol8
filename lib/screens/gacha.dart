@@ -29,7 +29,8 @@ class PointState {
       currentPoints: currentPoints ?? this.currentPoints,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
-      isLocationTrackingEnabled: isLocationTrackingEnabled ?? this.isLocationTrackingEnabled,
+      isLocationTrackingEnabled:
+          isLocationTrackingEnabled ?? this.isLocationTrackingEnabled,
     );
   }
 }
@@ -69,7 +70,6 @@ class PointController extends StateNotifier<PointState> {
 final pointProvider = StateNotifierProvider<PointController, PointState>((ref) {
   return PointController();
 });
-
 
 /// ガチャの景品レアリティを定義する列挙型
 /// 各レアリティは排出確率と表示色が異なり、ユーザーの期待値を決定する重要な要素
@@ -340,7 +340,7 @@ class _GachaAnimationState extends State<GachaAnimation>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha:0.3),
+                        color: Colors.black.withValues(alpha: 0.3),
                         blurRadius: 15,
                         offset: const Offset(0, 8),
                       ),
@@ -351,7 +351,7 @@ class _GachaAnimationState extends State<GachaAnimation>
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha:0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -372,11 +372,11 @@ class _GachaAnimationState extends State<GachaAnimation>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha:0.9),
+                    color: Colors.blue.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha:0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -450,7 +450,7 @@ class ResultModal extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _getRarityColor(result.item.rarity).withValues(alpha:0.1),
+        color: _getRarityColor(result.item.rarity).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: _getRarityColor(result.item.rarity),
@@ -465,7 +465,7 @@ class ResultModal extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: _getRarityColor(result.item.rarity).withValues(alpha:0.2),
+              color: _getRarityColor(result.item.rarity).withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -518,10 +518,10 @@ class ResultModal extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: _getRarityColor(result.item.rarity).withValues(alpha:0.1),
+            color: _getRarityColor(result.item.rarity).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: _getRarityColor(result.item.rarity).withValues(alpha:0.5),
+              color: _getRarityColor(result.item.rarity).withValues(alpha: 0.5),
             ),
           ),
           child: Row(
@@ -541,7 +541,9 @@ class ResultModal extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _getRarityColor(result.item.rarity).withValues(alpha:0.2),
+                  color: _getRarityColor(
+                    result.item.rarity,
+                  ).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
@@ -644,10 +646,7 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
       appBar: AppBar(
         title: const Text(
           'ガチャ',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -925,7 +924,7 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              
+
               // ガチャ料金情報
               Container(
                 padding: const EdgeInsets.all(12),
@@ -937,7 +936,10 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
                   children: [
                     const Text(
                       '料金',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -950,16 +952,16 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // 排出確率表
               const Text(
                 '排出確率・景品一覧',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              
+
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
@@ -988,7 +990,7 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          
+
                           // 景品情報
                           Expanded(
                             child: Column(
@@ -1012,7 +1014,7 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
                               ],
                             ),
                           ),
-                          
+
                           // 確率表示
                           Text(
                             '${(item.probability * 100).toStringAsFixed(1)}%',
@@ -1028,9 +1030,9 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
                   },
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // 閉じるボタン
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
