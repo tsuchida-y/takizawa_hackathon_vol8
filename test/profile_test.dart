@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:takizawa_hackathon_vol8/profile.dart';
+import 'package:takizawa_hackathon_vol8/screens/profile.dart';
 
 /// プロフィール画面のテスト
 void main() {
