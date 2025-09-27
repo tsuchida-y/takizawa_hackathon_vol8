@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:takizawa_hackathon_vol8/screens/setting.dart';
 
 /// 設定ボタンの共通ウィジェット
 /// 各画面の右上に表示する設定ボタンを提供します
@@ -20,31 +21,15 @@ class SettingsButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       icon: Icon(Icons.settings, color: color),
-      onPressed: onPressed ?? () => _showSettingsDialog(context),
+      onPressed: onPressed ?? () => _navigateToSettings(context),
     );
   }
 
-  /// 標準の設定ダイアログを表示
-  void _showSettingsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('設定'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(leading: Icon(Icons.account_circle), title: Text('アカウント')),
-            ListTile(leading: Icon(Icons.notifications), title: Text('通知')),
-            ListTile(leading: Icon(Icons.help), title: Text('ヘルプ')),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('閉じる'),
-          ),
-        ],
-      ),
+  /// 設定画面に遷移する
+  void _navigateToSettings(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SettingScreen()),
     );
   }
 }
