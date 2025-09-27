@@ -12,7 +12,11 @@ void main() async {
   await notificationService.initialize();
   await notificationService.createNotificationChannels();
   
-  runApp(const MyApp());
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
