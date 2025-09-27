@@ -63,13 +63,6 @@ class SocialPlatformInfo {
 final pointActionsProvider = Provider<List<PointAction>>((ref) {
   return const [
     PointAction(
-      type: PointActionType.location,
-      title: '現在地登録',
-      description: '位置情報を取得してポイントを獲得',
-      points: 100,
-      icon: Icons.location_on,
-    ),
-    PointAction(
       type: PointActionType.event,
       title: 'イベント参加',
       description: '地域イベントに参加してポイントを獲得',
@@ -82,13 +75,6 @@ final pointActionsProvider = Provider<List<PointAction>>((ref) {
       description: '特産品の購入を登録してポイントを獲得',
       points: 300,
       icon: Icons.shopping_bag,
-    ),
-    PointAction(
-      type: PointActionType.socialComment,
-      title: 'SNS投稿',
-      description: '地域に関するコメントを投稿してポイントを獲得',
-      points: 50,
-      icon: Icons.comment,
     ),
   ];
 });
