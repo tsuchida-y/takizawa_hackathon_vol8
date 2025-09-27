@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:takizawa_hackathon_vol8/pointget.dart';
 import 'package:takizawa_hackathon_vol8/screens/ranking.dart';
 import 'package:takizawa_hackathon_vol8/screens/profile.dart';
-import 'package:takizawa_hackathon_vol8/screens/gacha_screen.dart';
+import 'package:takizawa_hackathon_vol8/screens/gacha.dart';
 
 /// ナビゲーションのインデックス
 enum NavIndex { home, ranking, profile, menu }
@@ -97,11 +97,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Widget _buildCurrentScreen() {
     switch (_currentIndex) {
       case NavIndex.home:
-        return const PointGetScreen();
+        return const ProfileScreen();
       case NavIndex.ranking:
         return const RankingScreen();
       case NavIndex.profile:
-        return const ProfileScreen();
+        return const PointGetScreen();
       case NavIndex.menu:
         return const GachaScreen();
     }
