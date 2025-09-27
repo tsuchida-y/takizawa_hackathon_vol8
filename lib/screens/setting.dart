@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'account.dart';
-import 'notification.dart';
-import 'sns_connection.dart';
-import 'help.dart';
-import 'announcement.dart';
+import 'settings_screen/account.dart';
+import 'settings_screen/notification.dart';
+import 'settings_screen/sns_connection.dart';
+import 'settings_screen/help.dart';
+import 'settings_screen/announcement.dart';
 
 // ===== Domain Layer =====
 
