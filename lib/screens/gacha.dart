@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:takizawa_hackathon_vol8/screens/pointget.dart';
+import 'package:takizawa_hackathon_vol8/pointget.dart';
 
 
 /// ガチャの景品レアリティを定義する列挙型
