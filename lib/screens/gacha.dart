@@ -273,7 +273,7 @@ class _GachaAnimationState extends State<GachaAnimation>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha:0.3),
                         blurRadius: 15,
                         offset: const Offset(0, 8),
                       ),
@@ -284,7 +284,7 @@ class _GachaAnimationState extends State<GachaAnimation>
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha:0.9),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -305,11 +305,11 @@ class _GachaAnimationState extends State<GachaAnimation>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.9),
+                    color: Colors.blue.withValues(alpha:0.9),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha:0.2),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -383,7 +383,7 @@ class ResultModal extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _getRarityColor(result.item.rarity).withOpacity(0.1),
+        color: _getRarityColor(result.item.rarity).withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: _getRarityColor(result.item.rarity),
@@ -398,7 +398,7 @@ class ResultModal extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: _getRarityColor(result.item.rarity).withOpacity(0.2),
+              color: _getRarityColor(result.item.rarity).withValues(alpha:0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -451,10 +451,10 @@ class ResultModal extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: _getRarityColor(result.item.rarity).withOpacity(0.1),
+            color: _getRarityColor(result.item.rarity).withValues(alpha:0.1),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: _getRarityColor(result.item.rarity).withOpacity(0.5),
+              color: _getRarityColor(result.item.rarity).withValues(alpha:0.5),
             ),
           ),
           child: Row(
@@ -474,7 +474,7 @@ class ResultModal extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _getRarityColor(result.item.rarity).withOpacity(0.2),
+                  color: _getRarityColor(result.item.rarity).withValues(alpha:0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
@@ -672,7 +672,7 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
                           ),
 
                           // 10連ガチャボタン
-                          Container(
+                          SizedBox(
                             width: double.infinity,
                             height: 56,
                             child: ElevatedButton(
