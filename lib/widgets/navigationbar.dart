@@ -45,22 +45,13 @@ class CustomBottomNavigationBar extends ConsumerWidget {
         unselectedItemColor: Colors.grey.shade400,
         elevation: 0,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'ホーム',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'ホーム'),
           BottomNavigationBarItem(
             icon: Icon(Icons.leaderboard),
             label: 'ランキング',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.stars),
-            label: 'ポイント',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.casino),
-            label: 'ガチャ',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.stars), label: 'ポイント'),
+          BottomNavigationBarItem(icon: Icon(Icons.casino), label: 'ガチャ'),
         ],
       ),
     );
@@ -72,7 +63,8 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
 
   @override
-  ConsumerState<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  ConsumerState<MainNavigationScreen> createState() =>
+      _MainNavigationScreenState();
 }
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
@@ -111,9 +103,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   void _handleBottomNavigationTap(BuildContext context, int index) {
     // NavIndex.values[index]と_currentIndexが一致する場合、
     // すでに選択されたタブなので何もしない
-    if (index < NavIndex.values.length && NavIndex.values[index] != _currentIndex) {
+    if (index < NavIndex.values.length &&
+        NavIndex.values[index] != _currentIndex) {
       setState(() => _currentIndex = NavIndex.values[index]);
-      
+
       // 画面遷移時のアニメーション効果が必要な場合はここに追加
     }
   }
