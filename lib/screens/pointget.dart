@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart';
 
 /// ポイント獲得アクションの種類を定義する列挙型
 /// 各アクションに対応するポイント獲得手段を区別し、地域活性化を促進する
@@ -252,10 +253,7 @@ class PointGetScreen extends ConsumerWidget {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => _showSettingsDialog(context),
-                    icon: const Icon(Icons.settings),
-                  ),
+                  const SettingsButton(),
                 ],
               ),
             ),
@@ -597,29 +595,6 @@ class PointGetScreen extends ConsumerWidget {
         content: Text('${platform.name}でコメント投稿完了！+${platform.points}pt獲得'),
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showSettingsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('設定'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(leading: Icon(Icons.account_circle), title: Text('アカウント')),
-            ListTile(leading: Icon(Icons.notifications), title: Text('通知')),
-            ListTile(leading: Icon(Icons.help), title: Text('ヘルプ')),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('閉じる'),
-          ),
-        ],
       ),
     );
   }

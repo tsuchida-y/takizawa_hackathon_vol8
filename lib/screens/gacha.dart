@@ -1,7 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:takizawa_hackathon_vol8/pointget.dart';
+import 'package:takizawa_hackathon_vol8/screens/pointget.dart';
+import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart';
 
 
 /// ガチャの景品レアリティを定義する列挙型
@@ -586,10 +587,7 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _showSettingsDialog(context),
-          ),
+          const SettingsButton(),
         ],
       ),
       body: SafeArea(
@@ -828,30 +826,6 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
       builder: (context) => ResultModal(
         results: results,
         onClose: () => Navigator.of(context).pop(),
-      ),
-    );
-  }
-
-  /// 設定ダイアログを表示
-  void _showSettingsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('設定'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(leading: Icon(Icons.account_circle), title: Text('アカウント')),
-            ListTile(leading: Icon(Icons.notifications), title: Text('通知')),
-            ListTile(leading: Icon(Icons.help), title: Text('ヘルプ')),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('閉じる'),
-          ),
-        ],
       ),
     );
   }
