@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:takizawa_hackathon_vol8/pointget.dart'; // 削除済み
 import 'package:takizawa_hackathon_vol8/screens/ranking.dart';
 import 'package:takizawa_hackathon_vol8/screens/profile.dart';
 import 'package:takizawa_hackathon_vol8/screens/gacha.dart';
+import 'package:takizawa_hackathon_vol8/screens/pointget.dart';
 
 /// ナビゲーションのインデックス
 enum NavIndex { home, ranking, profile, menu }
@@ -101,7 +101,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       case NavIndex.ranking:
         return const RankingScreen();
       case NavIndex.profile:
-        return const Center(child: Text('ポイント獲得画面\n（未実装）', style: TextStyle(fontSize: 18))); // プレースホルダー
+        return const PointGetScreen(); // ポイント獲得画面を復元
       case NavIndex.menu:
         return const GachaScreen();
     }

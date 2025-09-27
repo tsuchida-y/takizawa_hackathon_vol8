@@ -10,22 +10,26 @@ class PointState {
   final int currentPoints; // ユーザーの現在所持ポイント
   final bool isLoading; // ポイント操作中のローディング状態
   final String? errorMessage; // エラーメッセージ（オプション）
+  final bool isLocationTrackingEnabled; // 現在地追跡機能のON/OFF状態
 
   const PointState({
     this.currentPoints = 1000, // 初期ポイント
     this.isLoading = false,
     this.errorMessage,
+    this.isLocationTrackingEnabled = false,
   });
 
   PointState copyWith({
     int? currentPoints,
     bool? isLoading,
     String? errorMessage,
+    bool? isLocationTrackingEnabled,
   }) {
     return PointState(
       currentPoints: currentPoints ?? this.currentPoints,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
+      isLocationTrackingEnabled: isLocationTrackingEnabled ?? this.isLocationTrackingEnabled,
     );
   }
 }
@@ -51,6 +55,13 @@ class PointController extends StateNotifier<PointState> {
   /// エラーメッセージをクリア
   void clearError() {
     state = state.copyWith(errorMessage: null);
+  }
+
+  /// 位置情報追跡の有効/無効を切り替え
+  void toggleLocationTracking() {
+    state = state.copyWith(
+      isLocationTrackingEnabled: !state.isLocationTrackingEnabled,
+    );
   }
 }
 
