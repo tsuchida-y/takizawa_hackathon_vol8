@@ -20,7 +20,7 @@ void main() {
     });
 
     test('should create a SettingItem with all parameters', () {
-      void testCallback() {}
+      void testCallback(BuildContext context) {}
       
       final settingItem = SettingItem(
         id: 'test_id',
@@ -163,7 +163,7 @@ void main() {
         id: 'test',
         title: 'Test Title',
         icon: Icons.settings,
-        onTap: () => tapped = true,
+        onTap: (context) => tapped = true,
       );
 
       await tester.pumpWidget(

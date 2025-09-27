@@ -37,6 +37,18 @@ dependencies:
   
   # State management
   flutter_riverpod: ^2.4.9
+  
+  # Image picker
+  image_picker: ^1.0.4
+  
+  # Permissions
+  permission_handler: ^11.0.1
+  
+  # Device info
+  device_info_plus: ^9.1.0
+  
+  # Local notifications
+  flutter_local_notifications: ^17.2.3
 
 dev_dependencies:
   flutter_test:

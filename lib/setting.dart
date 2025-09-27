@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'account.dart';
+import 'notification.dart';
+import 'sns_connection.dart';
+import 'help.dart';
+import 'announcement.dart';
 
 // ===== Domain Layer =====
 
@@ -9,7 +14,7 @@ class SettingItem {
   final String title;
   final IconData icon;
   final String? subtitle;
-  final VoidCallback? onTap;
+  final Function(BuildContext)? onTap;
 
   const SettingItem({
     required this.id,
@@ -32,58 +37,78 @@ class SettingsRepository {
         title: 'アカウント',
         icon: Icons.person_outline,
         subtitle: 'プロフィール設定',
-        onTap: () => _navigateToAccount(),
+        onTap: _navigateToAccount,
       ),
       SettingItem(
         id: 'notifications',
         title: '通知',
         icon: Icons.notifications_outlined,
         subtitle: 'プッシュ通知設定',
-        onTap: () => _navigateToNotifications(),
+        onTap: _navigateToNotifications,
       ),
       SettingItem(
         id: 'social_connect',
         title: 'SNS連携',
         icon: Icons.link_outlined,
         subtitle: 'SNSアカウント連携',
-        onTap: () => _navigateToSocialConnect(),
+        onTap: _navigateToSocialConnect,
       ),
       SettingItem(
         id: 'announcements',
         title: 'お知らせ',
         icon: Icons.campaign_outlined,
         subtitle: '最新情報をチェック',
-        onTap: () => _navigateToAnnouncements(),
+        onTap: _navigateToAnnouncements,
       ),
       SettingItem(
         id: 'help',
         title: 'ヘルプ',
         icon: Icons.help_outline,
         subtitle: 'FAQ・お問い合わせ',
-        onTap: () => _navigateToHelp(),
+        onTap: _navigateToHelp,
       ),
     ];
   }
 
   // ナビゲーション処理のプレースホルダー
-  void _navigateToAccount() {
+  void _navigateToAccount(BuildContext context) {
     debugPrint('アカウント設定画面へ遷移');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AccountScreen()),
+    );
   }
 
-  void _navigateToNotifications() {
+  void _navigateToNotifications(BuildContext context) {
     debugPrint('通知設定画面へ遷移');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NotificationScreen()),
+    );
   }
 
-  void _navigateToSocialConnect() {
+  void _navigateToSocialConnect(BuildContext context) {
     debugPrint('SNS連携設定画面へ遷移');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SNSConnectionScreen()),
+    );
   }
 
-  void _navigateToAnnouncements() {
+  void _navigateToAnnouncements(BuildContext context) {
     debugPrint('お知らせ画面へ遷移');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AnnouncementScreen()),
+    );
   }
 
-  void _navigateToHelp() {
+  void _navigateToHelp(BuildContext context) {
     debugPrint('ヘルプ画面へ遷移');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const HelpScreen()),
+    );
   }
 }
 
@@ -164,7 +189,7 @@ class SettingItemCard extends StatelessWidget {
         ),
       ),
       child: InkWell(
-        onTap: item.onTap,
+        onTap: item.onTap != null ? () => item.onTap!(context) : null,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.all(16),
