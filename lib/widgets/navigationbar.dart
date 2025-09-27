@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:takizawa_hackathon_vol8/pointget.dart';
+import 'package:takizawa_hackathon_vol8/screens/pointget.dart';
 import 'package:takizawa_hackathon_vol8/screens/ranking.dart';
 import 'package:takizawa_hackathon_vol8/screens/profile.dart';
 import 'package:takizawa_hackathon_vol8/screens/gacha.dart';
