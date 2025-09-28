@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart';
+// import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart'; // 削除済み
 
 // ===== データモデル =====
 
@@ -475,7 +475,10 @@ class RankingScreen extends ConsumerWidget {
         elevation: 0,
         centerTitle: true,
         actions: [
-          const SettingsButton(),
+                IconButton(
+                  onPressed: () => _showSettingsDialog(context),
+                  icon: const Icon(Icons.settings),
+                ),
         ],
       ),
       body: RefreshIndicator(
@@ -542,6 +545,29 @@ class RankingScreen extends ConsumerWidget {
         ),
       ),
       // 共通のナビゲーションバーはMainNavigationScreenで管理するため削除
+    );
+  }
+
+  void _showSettingsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('設定'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(leading: Icon(Icons.account_circle), title: Text('アカウント')),
+            ListTile(leading: Icon(Icons.notifications), title: Text('通知')),
+            ListTile(leading: Icon(Icons.help), title: Text('ヘルプ')),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
     );
   }
 }
