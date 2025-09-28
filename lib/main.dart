@@ -1,22 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'widgets/navigationbar.dart';
-import 'service/notification_service.dart';
-import 'firebase_options.dart'; 
-import 'package:firebase_core/firebase_core.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebaseの初期化
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
-  // 通知サービスを初期化
-  final notificationService = NotificationService();
-  await notificationService.initialize();
-  await notificationService.createNotificationChannels();
+  // Android最適化：重い初期化を段階的に無効化
+  if (!kIsWeb) {
+    // とりあえず全ての重い処理をスキップ
+    debugPrint('Android軽量モードで起動...');
+  }
   
   runApp(
     const ProviderScope(

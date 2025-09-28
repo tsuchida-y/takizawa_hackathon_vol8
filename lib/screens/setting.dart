@@ -5,6 +5,7 @@ import 'settings_screen/notification.dart';
 import 'settings_screen/sns_connection.dart';
 import 'settings_screen/help.dart';
 import 'settings_screen/announcement.dart';
+import 'settings_screen/location.dart';
 
 // ===== Domain Layer =====
 
@@ -52,6 +53,13 @@ class SettingsRepository {
         icon: Icons.link_outlined,
         subtitle: 'SNSアカウント連携',
         onTap: _navigateToSocialConnect,
+      ),
+      SettingItem(
+        id: 'location',
+        title: '位置情報',
+        icon: Icons.location_on_outlined,
+        subtitle: 'GPS・位置情報設定',
+        onTap: _navigateToLocation,
       ),
       SettingItem(
         id: 'announcements',
@@ -108,6 +116,14 @@ class SettingsRepository {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const HelpScreen()),
+    );
+  }
+
+  void _navigateToLocation(BuildContext context) {
+    debugPrint('位置情報設定画面へ遷移');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LocationScreen()),
     );
   }
 }

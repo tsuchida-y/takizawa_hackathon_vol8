@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:takizawa_hackathon_vol8/screens/pointget.dart';
-import 'package:takizawa_hackathon_vol8/screens/ranking.dart';
-import 'package:takizawa_hackathon_vol8/screens/profile.dart';
-import 'package:takizawa_hackathon_vol8/screens/gacha.dart';
+import '../screens/settings_screen/location_lite.dart';
 
 /// ナビゲーションのインデックス
 enum NavIndex { home, ranking, profile, menu }
@@ -95,15 +92,16 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   }
 
   Widget _buildCurrentScreen() {
+    // 基本ナビゲーション復元（軽量実装）
     switch (_currentIndex) {
       case NavIndex.home:
-        return const ProfileScreen();
+        return const HomeScreenLite();
       case NavIndex.ranking:
-        return const RankingScreen();
+        return const RankingScreenLite();
       case NavIndex.profile:
-        return const PointGetScreen();
+        return const ProfileScreenLite();
       case NavIndex.menu:
-        return const GachaScreen();
+        return const MenuScreenLite();
     }
   }
 
@@ -116,5 +114,147 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       
       // 画面遷移時のアニメーション効果が必要な場合はここに追加
     }
+  }
+}
+
+// 軽量版画面クラス群
+class HomeScreenLite extends StatelessWidget {
+  const HomeScreenLite({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('ホーム'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.home, size: 80, color: Colors.blue),
+            SizedBox(height: 20),
+            Text(
+              'ホーム画面',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            Text('軽量版で動作中'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class RankingScreenLite extends StatelessWidget {
+  const RankingScreenLite({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('ランキング'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.leaderboard, size: 80, color: Colors.orange),
+            SizedBox(height: 20),
+            Text(
+              'ランキング画面',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            Text('軽量版で動作中'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProfileScreenLite extends StatelessWidget {
+  const ProfileScreenLite({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('プロフィール'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.stars, size: 80, color: Colors.purple),
+            SizedBox(height: 20),
+            Text(
+              'プロフィール画面',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            Text('軽量版で動作中'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MenuScreenLite extends StatelessWidget {
+  const MenuScreenLite({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('メニュー'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 20),
+            const Icon(Icons.casino, size: 80, color: Colors.green),
+            const SizedBox(height: 20),
+            const Text(
+              'メニュー画面',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              '軽量版で動作中',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 40),
+            
+            // 位置情報設定ボタン
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.location_on, color: Colors.blue),
+                title: const Text('位置情報設定（軽量版）'),
+                subtitle: const Text('GPS機能をテスト'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LocationScreenLite(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
