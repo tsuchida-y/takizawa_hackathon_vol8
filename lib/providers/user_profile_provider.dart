@@ -89,7 +89,7 @@ class UserProfileRepository {
       email: '',
       gender: '男性',
       birthDate: DateTime(2005, 5, 22),
-      selfIntroduction: 'Name TSU******\njob 大学生',
+      selfIntroduction: '',
       registrationDate: DateTime(2024, 10, 14),
       profileImagePath: null,
       totalPoints: 2548,
