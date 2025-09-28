@@ -82,15 +82,24 @@ class UserProfileRepository {
     return 'TSU$randomNumber';
   }
 
+  /// 8文字のランダムユーザーIDを生成（英数字と_-を使用）
+  String _generateRandomUserId() {
+    final random = Random();
+    const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-';
+    return String.fromCharCodes(Iterable.generate(
+      8, (_) => characters.codeUnitAt(random.nextInt(characters.length))
+    ));
+  }
+
   UserProfile getUserProfile() {
     return UserProfile(
       nickname: _generateInitialNickname(),
-      userId: '91nw8l6r',
+      userId: _generateRandomUserId(),
       email: '',
-      gender: '男性',
-      birthDate: DateTime(2005, 5, 22),
+      gender: null,
+      birthDate: DateTime(2000, 1, 1),
       selfIntroduction: '',
-      registrationDate: DateTime(2024, 10, 14),
+      registrationDate: DateTime.now(),
       profileImagePath: null,
       totalPoints: 2548,
       currentStreak: 12,
