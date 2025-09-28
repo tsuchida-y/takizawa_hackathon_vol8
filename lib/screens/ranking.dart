@@ -512,7 +512,7 @@ class CurrentUserRankingFooter extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.75), // 75%の背景透過率
+        color: Colors.white.withOpacity(1), // 75%の背景透過率
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
