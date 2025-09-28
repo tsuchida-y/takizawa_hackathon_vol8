@@ -198,7 +198,7 @@ List<RankingItem> _generateRankingDataWithRealUser(UserProfile userProfile, {req
       name: 'TSU${(100000 + index * 12345).toString().substring(0, 6)}', // TSU + 6桁の数字
       score: (1000 - index * 50) + (index * 10) + baseScore,
       avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user${index + 1}',
-      isCurrentUser: false,
+      isCurrentUser: false, userId: '',
     );
   });
   
@@ -208,7 +208,7 @@ List<RankingItem> _generateRankingDataWithRealUser(UserProfile userProfile, {req
     name: userProfile.displayName,
     score: userProfile.totalPoints + baseScore,
     avatarUrl: userProfile.avatarUrl,
-    isCurrentUser: true,
+    isCurrentUser: true, userId: '',
   );
   
   // リストに追加
