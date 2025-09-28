@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ===== データモデル =====
 
@@ -11,6 +12,7 @@ class RankingItem {
   final int score;
   final String avatarUrl;
   final bool isCurrentUser;
+  final String userId;
 
   const RankingItem({
     required this.rank,
@@ -18,6 +20,7 @@ class RankingItem {
     required this.score,
     required this.avatarUrl,
     this.isCurrentUser = false,
+    required this.userId,
   });
 
   /// テスト用のサンプルデータを生成
@@ -29,6 +32,7 @@ class RankingItem {
         score: (1000 - index * 50) + (index * 10),
         avatarUrl:
             'https://api.dicebear.com/7.x/avataaars/svg?seed=user${index + 1}',
+        userId: 'user${index + 1}',
       );
     });
   }
@@ -45,9 +49,23 @@ class RankingItem {
         score: items[currentUserIndex].score,
         avatarUrl: items[currentUserIndex].avatarUrl,
         isCurrentUser: true,
+        userId: '1', // 現在のユーザーIDを固定値「1」に設定
       );
     }
     return items;
+  }
+
+  /// Firestoreドキュメントからランキング項目を生成
+  factory RankingItem.fromFirestore(DocumentSnapshot doc, int rank, bool isCurrentUser, String? nickname) {
+    final data = doc.data() as Map<String, dynamic>;
+    return RankingItem(
+      rank: rank,
+      name: nickname ?? '未設定',
+      score: data['totalPoint'] ?? 0,
+      avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=${doc.id}',
+      isCurrentUser: isCurrentUser,
+      userId: doc.id,
+    );
   }
 }
 
@@ -94,90 +112,101 @@ final customPeriodProvider = StateProvider<CustomPeriod?>((ref) {
 });
 
 /// ランキングデータのプロバイダー
-final rankingDataProvider = Provider<List<RankingItem>>((ref) {
+final rankingDataProvider = FutureProvider<List<RankingItem>>((ref) async {
   final selectedPeriod = ref.watch(selectedPeriodProvider);
-
-  // 実際のアプリケーションでは、ここでAPIからデータを取得する
-  List<RankingItem> items;
-
+  
+  // Firestoreからデータを取得
+  final firestore = FirebaseFirestore.instance;
+  final pointCollection = firestore.collection('point');
+  final usersCollection = firestore.collection('users');
+  
+  // 現在のユーザーID
+  const String currentUserId = '1';
+  
+  // 期間に応じたフィールドを取得
+  String pointField;
   switch (selectedPeriod) {
     case RankingPeriod.day:
-      items = RankingItem.generateSampleDataWithCurrentUser(count: 15);
+      pointField = 'dayPoint';
       break;
     case RankingPeriod.month:
-      items = RankingItem.generateSampleDataWithCurrentUser(count: 12)
-          .map(
-            (item) => RankingItem(
-              rank: item.rank,
-              name: item.name,
-              score: item.score + 200,
-              avatarUrl: item.avatarUrl,
-              isCurrentUser: item.isCurrentUser,
-            ),
-          )
-          .toList();
+      pointField = 'monthPoint';
       break;
     case RankingPeriod.year:
-      items = RankingItem.generateSampleDataWithCurrentUser(count: 20)
-          .map(
-            (item) => RankingItem(
-              rank: item.rank,
-              name: item.name,
-              score: item.score + 500,
-              avatarUrl: item.avatarUrl,
-              isCurrentUser: item.isCurrentUser,
-            ),
-          )
-          .toList();
+      pointField = 'yearPoint';
       break;
     case RankingPeriod.custom:
-      // カスタム期間のデータを生成
-      items = RankingItem.generateSampleDataWithCurrentUser(count: 18)
-          .map(
-            (item) => RankingItem(
-              rank: item.rank,
-              name: item.name,
-              score: item.score + 300,
-              avatarUrl: item.avatarUrl,
-              isCurrentUser: item.isCurrentUser,
-            ),
-          )
-          .toList();
+      // カスタム期間の場合はとりあえず合計ポイントを使用
+      pointField = 'totalPoint';
       break;
   }
-
-  // スコア順でソートしてランクを再計算
-  // TODO:キャッシュの利用の検討やソートが効率的かを検証する
-  items.sort((a, b) => b.score.compareTo(a.score));
-  for (int i = 0; i < items.length; i++) {
-    items[i] = RankingItem(
-      rank: i + 1,
-      name: items[i].name,
-      score: items[i].score,
-      avatarUrl: items[i].avatarUrl,
-      isCurrentUser: items[i].isCurrentUser,
-    );
+  
+  // ポイントでソートされたクエリを実行
+  final snapshot = await pointCollection.orderBy(pointField, descending: true).get();
+  final pointDocs = snapshot.docs;
+  
+  // ユーザーIDのリストを抽出
+  final userIds = pointDocs.map((doc) => doc.id).toList();
+  
+  // ユーザー情報をマップに格納
+  final userNicknames = <String, String>{};
+  
+  // ユーザー情報を一括で取得（バッチ処理）
+  if (userIds.isNotEmpty) {
+    try {
+      // 全てのユーザードキュメントを一度に取得
+      final userSnapshot = await usersCollection.get();
+      final allUserDocs = userSnapshot.docs;
+      
+      // ユーザーIDとニックネームのマップを作成
+      for (final userDoc in allUserDocs) {
+        if (userIds.contains(userDoc.id)) {
+          final userData = userDoc.data();
+          if (userData.containsKey('nickname')) {
+            userNicknames[userDoc.id] = userData['nickname'] as String;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('ユーザー情報の一括取得に失敗: $e');
+    }
   }
-
+  
+  // ランキング項目リストに変換
+  final items = <RankingItem>[];
+  for (int i = 0; i < pointDocs.length; i++) {
+    final doc = pointDocs[i];
+    final isCurrentUser = doc.id == currentUserId;
+    
+    // ユーザー情報からニックネームを取得
+    final nickname = userNicknames[doc.id];
+    
+    items.add(RankingItem.fromFirestore(doc, i + 1, isCurrentUser, nickname));
+  }
+  
   return items;
 });
 
 /// 現在のユーザーのランキング情報を取得するプロバイダー
-final currentUserRankingProvider = Provider<RankingItem?>((ref) {
-  final rankingData = ref.watch(rankingDataProvider);
-
-  try {
-    return rankingData.firstWhere((item) => item.isCurrentUser);
-  } catch (e) {
-    return null;
-  }
+final currentUserRankingProvider = Provider<AsyncValue<RankingItem?>>((ref) {
+  final rankingDataAsync = ref.watch(rankingDataProvider);
+  
+  return rankingDataAsync.whenData((rankingData) {
+    try {
+      return rankingData.firstWhere((item) => item.isCurrentUser);
+    } catch (e) {
+      return null;
+    }
+  });
 });
 
 /// トップランキング（上位10位）のプロバイダー
-final topRankingProvider = Provider<List<RankingItem>>((ref) {
-  final rankingData = ref.watch(rankingDataProvider);
-
-  return rankingData.take(10).toList();
+final topRankingProvider = Provider<AsyncValue<List<RankingItem>>>((ref) {
+  final rankingDataAsync = ref.watch(rankingDataProvider);
+  
+  return rankingDataAsync.whenData((rankingData) {
+    return rankingData.take(10).toList();
+  });
 });
 
 // ===== ウィジェット =====
@@ -504,47 +533,53 @@ class CurrentUserRankingFooter extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentUserRanking = ref.watch(currentUserRankingProvider);
+    final currentUserRankingAsync = ref.watch(currentUserRankingProvider);
 
-    if (currentUserRanking == null) {
-      return const SizedBox.shrink();
-    }
+    return currentUserRankingAsync.when(
+      data: (currentUserRanking) {
+        if (currentUserRanking == null) {
+          return const SizedBox.shrink();
+        }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(1), // 75%の背景透過率
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(1), // 75%の背景透過率
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              children: [
-                Text(
-                  'あなたのランキング',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade700,
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(
+                  children: [
+                    Text(
+                      'あなたのランキング',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                child: RankingCard(item: currentUserRanking, isHighlighted: true),
+              ),
+            ],
           ),
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-            child: RankingCard(item: currentUserRanking, isHighlighted: true),
-          ),
-        ],
-      ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (error, stackTrace) => const SizedBox.shrink(),
     );
   }
 }
@@ -602,7 +637,7 @@ class RankingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final topRanking = ref.watch(topRankingProvider);
+    final topRankingAsync = ref.watch(topRankingProvider);
     final selectedPeriod = ref.watch(selectedPeriodProvider);
     final customPeriod = ref.watch(customPeriodProvider);
 
@@ -687,14 +722,27 @@ class RankingScreen extends ConsumerWidget {
                 ),
 
                 // ランキングリスト
-                SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final item = topRanking[index];
-                    return RankingCard(
-                      item: item,
-                      isHighlighted: item.isCurrentUser, // 自分のランキングは強調表示
-                    );
-                  }, childCount: topRanking.length),
+                topRankingAsync.when(
+                  data: (topRankingData) => SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final item = topRankingData[index];
+                        return RankingCard(
+                          item: item,
+                          isHighlighted: item.isCurrentUser, // 自分のランキングは強調表示
+                        );
+                      },
+                      childCount: topRankingData.length,
+                    ),
+                  ),
+                  loading: () => const SliverToBoxAdapter(
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (error, stackTrace) => SliverToBoxAdapter(
+                    child: Center(
+                      child: Text('エラーが発生しました: $error'),
+                    ),
+                  ),
                 ),
 
                 // 下部余白（フッター分）
