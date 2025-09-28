@@ -10,6 +10,7 @@ class UserProfile {
   final String email;
   final String? gender;
   final DateTime? birthDate;
+  final String? residence;
   final String selfIntroduction;
   final DateTime registrationDate;
   final String? profileImagePath;
@@ -23,6 +24,7 @@ class UserProfile {
     required this.email,
     this.gender,
     this.birthDate,
+    this.residence,
     required this.selfIntroduction,
     required this.registrationDate,
     this.profileImagePath,
@@ -37,6 +39,7 @@ class UserProfile {
     String? email,
     String? gender,
     DateTime? birthDate,
+    String? residence,
     String? selfIntroduction,
     DateTime? registrationDate,
     String? profileImagePath,
@@ -50,6 +53,7 @@ class UserProfile {
       email: email ?? this.email,
       gender: gender ?? this.gender,
       birthDate: birthDate ?? this.birthDate,
+      residence: residence ?? this.residence,
       selfIntroduction: selfIntroduction ?? this.selfIntroduction,
       registrationDate: registrationDate ?? this.registrationDate,
       profileImagePath: profileImagePath ?? this.profileImagePath,
@@ -83,6 +87,7 @@ class UserProfile {
       birthDate: data['birthDate'] != null 
           ? (data['birthDate'] as Timestamp).toDate() 
           : null,
+      residence: data['residence'],
       selfIntroduction: data['selfIntroduction'] ?? '',
       registrationDate: data['registrationDate'] != null
           ? (data['registrationDate'] as Timestamp).toDate()
@@ -93,6 +98,8 @@ class UserProfile {
       maxStreak: data['maxStreak'] ?? 0,
     );
   }
+
+  // 居住地のgetterは不要になりました（フィールドとして定義されています）
   
   /// Firestoreに保存するデータを生成
   Map<String, dynamic> toFirestore() {
@@ -101,6 +108,7 @@ class UserProfile {
       'email': email,
       'gender': gender,
       'birthDate': birthDate != null ? Timestamp.fromDate(birthDate!) : null,
+      'residence': residence,
       'selfIntroduction': selfIntroduction,
       'registrationDate': Timestamp.fromDate(registrationDate),
       'profileImagePath': profileImagePath,
@@ -159,6 +167,7 @@ class UserProfileRepository {
       email: '',
       gender: '男性',
       birthDate: DateTime(2005, 5, 22),
+      residence: '岩手県',
       selfIntroduction: 'Name TSU******\njob 大学生',
       registrationDate: DateTime.now(),
       profileImagePath: null,
@@ -219,6 +228,7 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
     email: '',
     selfIntroduction: '',
     registrationDate: DateTime.now(),
+    residence: null,
   )) {
     _loadProfile();
   }
@@ -266,6 +276,11 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
   /// 生年月日を更新
   void updateBirthDate(DateTime? birthDate) {
     state = state.copyWith(birthDate: birthDate);
+  }
+  
+  /// 居住地を更新
+  void updateResidence(String? residence) {
+    state = state.copyWith(residence: residence);
   }
 
   /// 自己紹介を更新
