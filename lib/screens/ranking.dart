@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart';
+import 'package:takizawa_hackathon_vol8/providers/user_profile_provider.dart';
+import 'dart:io';
 
 // ===== データモデル =====
 
@@ -72,6 +74,9 @@ final selectedPeriodProvider = StateProvider<RankingPeriod>((ref) {
 
 /// ランキングデータのプロバイダー
 final rankingDataProvider = Provider.family<List<RankingItem>, RankingPeriod>((ref, period) {
+  // 実際のユーザープロフィールを取得
+  final userProfile = ref.watch(sharedUserProfileProvider);
+  
   // 実際のアプリケーションでは、ここでAPIからデータを取得する
   // 今回はダミーデータを使用
   List<RankingItem> items;
@@ -80,27 +85,13 @@ final rankingDataProvider = Provider.family<List<RankingItem>, RankingPeriod>((r
   //TODO: 本番ではキャッシュするなどの工夫をする
   switch (period) {
     case RankingPeriod.day:
-      items = RankingItem.generateSampleDataWithCurrentUser(count: 15);
+      items = _generateRankingDataWithRealUser(userProfile, count: 15, baseScore: 0);
       break;
     case RankingPeriod.month:
-      items = RankingItem.generateSampleDataWithCurrentUser(count: 12)
-        .map((item) => RankingItem(
-          rank: item.rank,
-          name: item.name,
-          score: item.score + 200, // 月間は少しスコアを上げる
-          avatarUrl: item.avatarUrl,
-          isCurrentUser: item.isCurrentUser,
-        )).toList();
+      items = _generateRankingDataWithRealUser(userProfile, count: 12, baseScore: 200);
       break;
     case RankingPeriod.year:
-      items = RankingItem.generateSampleDataWithCurrentUser(count: 20)
-        .map((item) => RankingItem(
-          rank: item.rank,
-          name: item.name,
-          score: item.score + 500, // 年間はもっとスコアを上げる
-          avatarUrl: item.avatarUrl,
-          isCurrentUser: item.isCurrentUser,
-        )).toList();
+      items = _generateRankingDataWithRealUser(userProfile, count: 20, baseScore: 500);
       break;
   }
   
@@ -119,6 +110,34 @@ final rankingDataProvider = Provider.family<List<RankingItem>, RankingPeriod>((r
   
   return items;
 });
+
+/// 実際のユーザー情報を含むランキングデータを生成
+List<RankingItem> _generateRankingDataWithRealUser(UserProfile userProfile, {required int count, required int baseScore}) {
+  // ダミーユーザーデータを生成
+  final dummyUsers = List.generate(count - 1, (index) {
+    return RankingItem(
+      rank: index + 1,
+      name: 'TSU${(100000 + index * 12345).toString().substring(0, 6)}', // TSU + 6桁の数字
+      score: (1000 - index * 50) + (index * 10) + baseScore,
+      avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user${index + 1}',
+      isCurrentUser: false,
+    );
+  });
+  
+  // 実際のユーザーを追加（中位に配置）
+  final currentUserItem = RankingItem(
+    rank: count ~/ 2, // 中位に配置
+    name: userProfile.displayName,
+    score: userProfile.totalPoints + baseScore,
+    avatarUrl: userProfile.avatarUrl,
+    isCurrentUser: true,
+  );
+  
+  // リストに追加
+  final items = [...dummyUsers, currentUserItem];
+  
+  return items;
+}
 
 /// 現在のユーザーのランキング情報を取得するプロバイダー
 final currentUserRankingProvider = Provider<RankingItem?>((ref) {
@@ -283,20 +302,47 @@ class RankingCard extends StatelessWidget {
         ),
       ),
       child: ClipOval(
-        child: Image.network(
-          item.avatarUrl,
+        child: _buildAvatarImage(),
+      ),
+    );
+  }
+
+  /// アバター画像を構築
+  Widget _buildAvatarImage() {
+    // 現在のユーザーでファイルパスがある場合
+    if (item.isCurrentUser && item.avatarUrl.startsWith('/')) {
+      final file = File(item.avatarUrl);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
           width: 50,
           height: 50,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            return Icon(
-              Icons.person,
-              size: 30,
-              color: Colors.grey.shade600,
-            );
+            return _buildDefaultAvatar();
           },
-        ),
-      ),
+        );
+      }
+    }
+    
+    // ネットワーク画像またはデフォルト
+    return Image.network(
+      item.avatarUrl,
+      width: 50,
+      height: 50,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return _buildDefaultAvatar();
+      },
+    );
+  }
+
+  /// デフォルトアバター
+  Widget _buildDefaultAvatar() {
+    return Icon(
+      Icons.person,
+      size: 30,
+      color: Colors.grey.shade600,
     );
   }
 }

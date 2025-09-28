@@ -24,64 +24,63 @@ class NotificationService {
   /// 通知サービスの初期化
   Future<void> initialize() async {
     try {
-      if (_isInitialized) return;
+      debugPrint('初期化開始: _isInitialized = $_isInitialized');
+      if (_isInitialized) {
+        debugPrint('既に初期化済みです');
+        return;
+      }
 
-      // Android設定
+      debugPrint('最小限の初期化設定を作成中...');
+      // 最小限のAndroid設定
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
 
-      // iOS設定
-      final DarwinInitializationSettings initializationSettingsIOS =
-          DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-        // iOSのバックグラウンド通知処理設定
-        notificationCategories: <DarwinNotificationCategory>[
-          DarwinNotificationCategory(
-            'actionable',
-            actions: <DarwinNotificationAction>[
-              DarwinNotificationAction.plain('id_1', 'アクション1'),
-              DarwinNotificationAction.plain('id_2', 'アクション2'),
-            ],
-          )
-        ],
-      );
+      // 最小限のiOS設定
+      const DarwinInitializationSettings initializationSettingsIOS =
+          DarwinInitializationSettings();
 
       // 初期化設定
-      final InitializationSettings initializationSettings =
+      const InitializationSettings initializationSettings =
           InitializationSettings(
         android: initializationSettingsAndroid,
         iOS: initializationSettingsIOS,
       );
 
-      // 通知プラグインの初期化
-      await _flutterLocalNotificationsPlugin.initialize(
+      debugPrint('通知プラグインを初期化中...');
+      // 通知プラグインの初期化（最小限）
+      final bool? result = await _flutterLocalNotificationsPlugin.initialize(
         initializationSettings,
-        // フォアグラウンドでの通知タップハンドラー
-        onDidReceiveNotificationResponse: _onNotificationTapped,
-        // バックグラウンドでの通知タップハンドラー
-        onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
-
-      // Androidの場合はチャンネル作成
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        await createNotificationChannels();
-      }
+      debugPrint('通知プラグイン初期化結果: $result');
 
       _isInitialized = true;
       debugPrint('通知サービスが初期化されました');
-    } catch (e) {
+
+      // 初期化後に非同期でチャンネル作成
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        debugPrint('Androidチャンネルを非同期で作成開始...');
+        createNotificationChannels().then((_) {
+          debugPrint('Androidチャンネル作成完了');
+        }).catchError((e) {
+          debugPrint('Androidチャンネル作成エラー: $e');
+        });
+      }
+    } catch (e, stackTrace) {
       debugPrint('通知サービスの初期化エラー: $e');
+      debugPrint('スタックトレース: $stackTrace');
       _isInitialized = false;
+      rethrow;
     }
   }
 
   /// 通知権限のリクエスト
   Future<bool> requestPermission() async {
     try {
+      debugPrint('通知権限のリクエストを開始します');
+      
       // iOS固有の権限リクエスト
       if (defaultTargetPlatform == TargetPlatform.iOS) {
+        debugPrint('iOS向け通知権限をリクエスト中...');
         final bool? result = await _flutterLocalNotificationsPlugin
             .resolvePlatformSpecificImplementation<
                 IOSFlutterLocalNotificationsPlugin>()
@@ -90,11 +89,14 @@ class NotificationService {
               badge: true,
               sound: true,
             );
+        debugPrint('iOS通知権限リクエスト結果: $result');
         return result ?? false;
       }
 
       // Android 13+ (API 33+) では通知権限のリクエストが必要
+      debugPrint('Android向け通知権限をリクエスト中...');
       final permission = await Permission.notification.request();
+      debugPrint('通知権限ステータス: $permission');
       
       if (permission.isGranted) {
         debugPrint('通知権限が許可されました');
@@ -118,6 +120,8 @@ class NotificationService {
   Future<bool> hasPermission() async {
     try {
       final permission = await Permission.notification.status;
+      debugPrint('現在の通知権限ステータス: $permission');
+      debugPrint('権限が許可されているか: ${permission.isGranted}');
       return permission.isGranted;
     } catch (e) {
       debugPrint('通知権限確認エラー: $e');
@@ -132,23 +136,36 @@ class NotificationService {
     String? payload,
   }) async {
     try {
-      if (!_isInitialized) await initialize();
+      debugPrint('お知らせ通知送信開始: $title');
+      
+      if (!_isInitialized) {
+        debugPrint('通知サービス未初期化、初期化を実行中...');
+        await initialize();
+      }
       
       if (!await hasPermission()) {
         debugPrint('通知権限がありません');
         return;
       }
 
+      debugPrint('通知の詳細設定を作成中...');
       final AndroidNotificationDetails androidPlatformChannelSpecifics =
           const AndroidNotificationDetails(
         'information_channel',
         'お知らせ通知',
         channelDescription: '新しいインフォメーションが配信された時の通知',
-        importance: Importance.high,
-        priority: Priority.high,
+        importance: Importance.max,
+        priority: Priority.max,
         icon: '@mipmap/ic_launcher',
         color: Color(0xFF2196F3),
         showWhen: true,
+        enableVibration: true,
+        playSound: true,
+        visibility: NotificationVisibility.public,
+        // 画面上部から通知を降ろすためのオプション
+        fullScreenIntent: true,
+        // 通知をヘッドアップで表示
+        category: AndroidNotificationCategory.message,
       );
 
       final DarwinNotificationDetails iOSPlatformChannelSpecifics =
@@ -163,6 +180,7 @@ class NotificationService {
         iOS: iOSPlatformChannelSpecifics,
       );
 
+      debugPrint('通知を表示中...');
       await _flutterLocalNotificationsPlugin.show(
         1, // notification ID
         title,
@@ -174,6 +192,7 @@ class NotificationService {
       debugPrint('お知らせ通知を送信しました: $title');
     } catch (e) {
       debugPrint('お知らせ通知送信エラー: $e');
+      rethrow; // エラーを再スローして、呼び出し元でもエラーハンドリングできるようにする
     }
   }
 
@@ -196,11 +215,18 @@ class NotificationService {
         'point_channel',
         'ポイント獲得通知',
         channelDescription: 'ポイントを獲得した時の通知',
-        importance: Importance.high,
-        priority: Priority.high,
+        importance: Importance.max,
+        priority: Priority.max,
         icon: '@mipmap/ic_launcher',
         color: Color(0xFF4CAF50),
         showWhen: true,
+        enableVibration: true,
+        playSound: true,
+        visibility: NotificationVisibility.public,
+        // 画面上部から通知を降ろすためのオプション
+        fullScreenIntent: true,
+        // 通知をヘッドアップで表示
+        category: AndroidNotificationCategory.message,
       );
 
       final DarwinNotificationDetails iOSPlatformChannelSpecifics =
@@ -247,43 +273,63 @@ class NotificationService {
   /// 通知チャンネルの作成（Android）
   Future<void> createNotificationChannels() async {
     try {
+      debugPrint('通知チャンネル作成開始');
       if (defaultTargetPlatform != TargetPlatform.android) {
+        debugPrint('Android以外のプラットフォームなのでスキップ');
         return;
       }
 
-      if (!_isInitialized) await initialize();
+      if (!_isInitialized) {
+        debugPrint('未初期化なので初期化を実行');
+        await initialize();
+      }
 
+      debugPrint('お知らせ通知チャンネルを作成中...');
       // お知らせ通知チャンネル
       const AndroidNotificationChannel informationChannel =
           AndroidNotificationChannel(
         'information_channel',
         'お知らせ通知',
         description: '新しいインフォメーションが配信された時の通知',
-        importance: Importance.high,
+        importance: Importance.max,
+        enableVibration: true,
+        playSound: true,
+        showBadge: true,
       );
 
+      debugPrint('ポイント獲得通知チャンネルを作成中...');
       // ポイント獲得通知チャンネル
       const AndroidNotificationChannel pointChannel =
           AndroidNotificationChannel(
         'point_channel',
         'ポイント獲得通知',
         description: 'ポイントを獲得した時の通知',
-        importance: Importance.high,
+        importance: Importance.max,
+        enableVibration: true,
+        playSound: true,
+        showBadge: true,
       );
 
-      await _flutterLocalNotificationsPlugin
+      debugPrint('Androidプラグインを取得中...');
+      final androidPlugin = _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(informationChannel);
+              AndroidFlutterLocalNotificationsPlugin>();
 
-      await _flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(pointChannel);
+      if (androidPlugin == null) {
+        debugPrint('Androidプラグインが取得できませんでした');
+        return;
+      }
+
+      debugPrint('お知らせ通知チャンネルを登録中...');
+      await androidPlugin.createNotificationChannel(informationChannel);
+
+      debugPrint('ポイント獲得通知チャンネルを登録中...');
+      await androidPlugin.createNotificationChannel(pointChannel);
 
       debugPrint('通知チャンネルを作成しました');
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('通知チャンネル作成エラー: $e');
+      debugPrint('スタックトレース: $stackTrace');
     }
   }
 

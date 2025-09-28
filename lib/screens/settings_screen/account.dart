@@ -3,152 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:takizawa_hackathon_vol8/providers/user_profile_provider.dart';
 import 'dart:io';
 
-// ===== Domain Layer =====
 
-/// ユーザープロフィールのモデル
-class UserProfile {
-  final String nickname;
-  final String userId;
-  final String email;
-  final String? gender;
-  final DateTime? birthDate;
-  final String selfIntroduction;
-  final DateTime registrationDate;
-  final String? profileImagePath;
-
-  const UserProfile({
-    required this.nickname,
-    required this.userId,
-    required this.email,
-    this.gender,
-    this.birthDate,
-    required this.selfIntroduction,
-    required this.registrationDate,
-    this.profileImagePath,
-  });
-
-  UserProfile copyWith({
-    String? nickname,
-    String? userId,
-    String? email,
-    String? gender,
-    DateTime? birthDate,
-    String? selfIntroduction,
-    DateTime? registrationDate,
-    String? profileImagePath,
-  }) {
-    return UserProfile(
-      nickname: nickname ?? this.nickname,
-      userId: userId ?? this.userId,
-      email: email ?? this.email,
-      gender: gender ?? this.gender,
-      birthDate: birthDate ?? this.birthDate,
-      selfIntroduction: selfIntroduction ?? this.selfIntroduction,
-      registrationDate: registrationDate ?? this.registrationDate,
-      profileImagePath: profileImagePath ?? this.profileImagePath,
-    );
-  }
-}
-
-// ===== Data Layer =====
-
-/// ユーザープロフィールのリポジトリ
-class UserProfileRepository {
-  /// ダミーデータを取得
-  UserProfile getUserProfile() {
-    return UserProfile(
-      nickname: '做-ｻｸ-',
-      userId: '91nw8l6r',
-      gender: '男性',
-      birthDate: DateTime(2005, 5, 22),
-      selfIntroduction: 'Name 做-ｻｸ-\njob 大学生',
-      registrationDate: DateTime(2024, 10, 14),
-      profileImagePath: null, email: '', // ダミーではnull
-    );
-  }
-
-  /// プロフィールを保存
-  Future<bool> saveUserProfile(UserProfile profile) async {
-    // 実際の実装では、APIを呼び出すかローカルストレージに保存
-    await Future.delayed(const Duration(milliseconds: 500));
-    debugPrint('プロフィールを保存しました: ${profile.nickname}');
-    return true;
-  }
-
-  /// ユーザーIDの重複チェック
-  Future<bool> checkUserIdAvailability(String userId) async {
-    // 実際の実装では、APIを呼び出してチェック
-    await Future.delayed(const Duration(milliseconds: 300));
-    // ダミーでは特定のIDを重複として扱う
-    final unavailableIds = ['admin', 'user', 'test', '91nw8l6r'];
-    return !unavailableIds.contains(userId.toLowerCase());
-  }
-}
-
-// ===== Application Layer =====
-
-/// ユーザープロフィールリポジトリのプロバイダー
-final userProfileRepositoryProvider = Provider<UserProfileRepository>(
-  (ref) => UserProfileRepository(),
-);
-
-/// ユーザープロフィールの状態管理
-class UserProfileNotifier extends StateNotifier<UserProfile> {
-  final UserProfileRepository _repository;
-
-  UserProfileNotifier(this._repository) : super(_repository.getUserProfile());
-
-  /// ニックネームを更新
-  void updateNickname(String nickname) {
-    if (nickname.length <= 20) {
-      state = state.copyWith(nickname: nickname);
-    }
-  }
-
-  /// ユーザーIDを更新
-  void updateUserId(String userId) {
-    state = state.copyWith(userId: userId);
-  }
-
-  /// 性別を更新
-  void updateGender(String? gender) {
-    state = state.copyWith(gender: gender);
-  }
-
-  /// 生年月日を更新
-  void updateBirthDate(DateTime? birthDate) {
-    state = state.copyWith(birthDate: birthDate);
-  }
-
-  /// 自己紹介を更新
-  void updateSelfIntroduction(String selfIntroduction) {
-    if (selfIntroduction.length <= 500) {
-      state = state.copyWith(selfIntroduction: selfIntroduction);
-    }
-  }
-
-  /// プロフィール画像を更新
-  void updateProfileImage(String? imagePath) {
-    state = state.copyWith(profileImagePath: imagePath);
-  }
-
-  /// プロフィールを保存
-  Future<bool> saveProfile() async {
-    return await _repository.saveUserProfile(state);
-  }
-
-  /// ユーザーIDの重複チェック
-  Future<bool> checkUserIdAvailability(String userId) async {
-    return await _repository.checkUserIdAvailability(userId);
-  }
-}
-
-/// ユーザープロフィールのプロバイダー
-final userProfileProvider = StateNotifierProvider<UserProfileNotifier, UserProfile>(
-  (ref) => UserProfileNotifier(ref.watch(userProfileRepositoryProvider)),
-);
 
 // ===== Presentation Layer =====
 
@@ -170,7 +28,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   @override
   void initState() {
     super.initState();
-    final profile = ref.read(userProfileProvider);
+    final profile = ref.read(sharedUserProfileProvider);
     _nicknameController = TextEditingController(text: profile.nickname);
     _userIdController = TextEditingController(text: profile.userId);
     _selfIntroductionController = TextEditingController(text: profile.selfIntroduction);
@@ -186,8 +44,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final profile = ref.watch(userProfileProvider);
-    final notifier = ref.read(userProfileProvider.notifier);
+    final profile = ref.watch(sharedUserProfileProvider);
+    final notifier = ref.read(sharedUserProfileProvider.notifier);
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -508,7 +366,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   Widget _buildGenderButton(String gender, bool isSelected) {
     return GestureDetector(
       onTap: () {
-        final notifier = ref.read(userProfileProvider.notifier);
+        final notifier = ref.read(sharedUserProfileProvider.notifier);
         notifier.updateGender(gender == '選択しない' ? null : gender);
       },
       child: Container(
@@ -578,7 +436,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       );
 
       if (image != null) {
-        ref.read(userProfileProvider.notifier).updateProfileImage(image.path);
+        ref.read(sharedUserProfileProvider.notifier).updateProfileImage(image.path);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -631,7 +489,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       );
 
       if (image != null) {
-        ref.read(userProfileProvider.notifier).updateProfileImage(image.path);
+        ref.read(sharedUserProfileProvider.notifier).updateProfileImage(image.path);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -657,7 +515,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   Future<void> _checkUserId() async {
     setState(() => _isUserIdChecking = true);
     
-    final notifier = ref.read(userProfileProvider.notifier);
+    final notifier = ref.read(sharedUserProfileProvider.notifier);
     final isAvailable = await notifier.checkUserIdAvailability(_userIdController.text);
     
     setState(() {
@@ -678,7 +536,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 
   Future<void> _selectBirthDate(BuildContext context) async {
-    final profile = ref.read(userProfileProvider);
+    final profile = ref.read(sharedUserProfileProvider);
     final initialDate = profile.birthDate ?? DateTime(2000);
     
     final selectedDate = await showDatePicker(
@@ -689,7 +547,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     );
 
     if (selectedDate != null) {
-      ref.read(userProfileProvider.notifier).updateBirthDate(selectedDate);
+      ref.read(sharedUserProfileProvider.notifier).updateBirthDate(selectedDate);
     }
   }
 
@@ -717,7 +575,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 
   Future<void> _saveProfile() async {
-    final notifier = ref.read(userProfileProvider.notifier);
+    final notifier = ref.read(sharedUserProfileProvider.notifier);
     
     try {
       final success = await notifier.saveProfile();

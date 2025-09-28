@@ -385,13 +385,25 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () {
-              ref.read(locationRepositoryLiteProvider).getCurrentLocation();
+            onPressed: manualLocation.isLoading ? null : () {
+              // 住所も同時に取得
+              ref.read(manualLocationProvider.notifier).refreshLocationWithAddress();
             },
-            icon: const Icon(Icons.my_location),
-            label: const Text('現在位置を取得'),
+            icon: manualLocation.isLoading 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.my_location),
+            label: Text(manualLocation.isLoading ? '取得中...' : '現在位置を取得'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade600,
+              backgroundColor: manualLocation.isLoading 
+                  ? Colors.blue.shade400 
+                  : Colors.blue.shade600,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
