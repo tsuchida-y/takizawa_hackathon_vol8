@@ -58,12 +58,12 @@ class RankingItem {
   }
 
   /// Firestoreドキュメントからランキング項目を生成
-  factory RankingItem.fromFirestore(DocumentSnapshot doc, int rank, bool isCurrentUser, String? nickname) {
+  factory RankingItem.fromFirestore(DocumentSnapshot doc, int rank, bool isCurrentUser, String? nickname, String pointField) {
     final data = doc.data() as Map<String, dynamic>;
     return RankingItem(
       rank: rank,
       name: nickname ?? '未設定',
-      score: data['totalPoint'] ?? 0,
+      score: data[pointField] ?? 0, // 期間に応じたポイントフィールドを使用
       avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=${doc.id}',
       isCurrentUser: isCurrentUser,
       userId: doc.id,
@@ -183,14 +183,19 @@ final rankingDataProvider = FutureProvider<List<RankingItem>>((ref) async {
     // ユーザー情報からニックネームを取得
     final nickname = userNicknames[doc.id];
     
-    items.add(RankingItem.fromFirestore(doc, i + 1, isCurrentUser, nickname));
+    items.add(RankingItem.fromFirestore(doc, i + 1, isCurrentUser, nickname, pointField));
   }
   
   return items;
 });
 
 /// 実際のユーザー情報を含むランキングデータを生成
-List<RankingItem> _generateRankingDataWithRealUser(UserProfile userProfile, {required int count, required int baseScore}) {
+List<RankingItem> _generateRankingDataWithRealUser(
+    UserProfile userProfile, {
+    required int count,
+    required int baseScore,
+    RankingPeriod period = RankingPeriod.day,
+  }) {
   // ダミーユーザーデータを生成
   final dummyUsers = List.generate(count - 1, (index) {
     return RankingItem(
@@ -202,11 +207,30 @@ List<RankingItem> _generateRankingDataWithRealUser(UserProfile userProfile, {req
     );
   });
   
+  // ユーザーの期間に応じたポイントを決定
+  int userPoints;
+  switch (period) {
+    case RankingPeriod.day:
+      // 日間ポイント (ここでは例としてtotalPointsの1/30を使用)
+      userPoints = (userProfile.totalPoints / 30).round();
+      break;
+    case RankingPeriod.month:
+      // 月間ポイント (ここでは例としてtotalPointsの1/2を使用)
+      userPoints = (userProfile.totalPoints / 2).round();
+      break;
+    case RankingPeriod.year:
+      // 年間ポイント (totalPointsをそのまま使用)
+      userPoints = userProfile.totalPoints;
+      break;
+    default:
+      userPoints = userProfile.totalPoints;
+  }
+  
   // 実際のユーザーを追加（中位に配置）
   final currentUserItem = RankingItem(
     rank: count ~/ 2, // 中位に配置
     name: userProfile.displayName,
-    score: userProfile.totalPoints + baseScore,
+    score: userPoints + baseScore,
     avatarUrl: userProfile.avatarUrl,
     isCurrentUser: true, userId: '',
   );
