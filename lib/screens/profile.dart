@@ -745,10 +745,10 @@ class _PointHistoryHeatmapState extends ConsumerState<PointHistoryHeatmap> {
     ];
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center, // 中央寄せに修正
       children: List.generate(7, (index) {
         return Container(
-          width: cellSize + cellMargin * 2,
+          width: cellSize,
           height: 40,
           margin: EdgeInsets.all(cellMargin),
           alignment: Alignment.center,
