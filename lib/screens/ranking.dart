@@ -27,7 +27,8 @@ class RankingItem {
         rank: index + 1,
         name: 'ユーザー${index + 1}',
         score: (1000 - index * 50) + (index * 10),
-        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user${index + 1}',
+        avatarUrl:
+            'https://api.dicebear.com/7.x/avataaars/svg?seed=user${index + 1}',
       );
     });
   }
@@ -54,12 +55,29 @@ class RankingItem {
 enum RankingPeriod {
   day('日', 'daily'),
   month('月', 'monthly'),
-  year('年', 'yearly');
+  year('年', 'yearly'),
+  custom('カスタム', 'custom');
 
   const RankingPeriod(this.label, this.value);
 
   final String label;
   final String value;
+}
+
+/// カスタム期間のデータモデル
+class CustomPeriod {
+  final DateTime startDate;
+  final DateTime endDate;
+
+  const CustomPeriod({required this.startDate, required this.endDate});
+
+  String get displayText {
+    final start =
+        '${startDate.year}/${startDate.month.toString().padLeft(2, '0')}/${startDate.day.toString().padLeft(2, '0')}';
+    final end =
+        '${endDate.year}/${endDate.month.toString().padLeft(2, '0')}/${endDate.day.toString().padLeft(2, '0')}';
+    return '$start ~ $end';
+  }
 }
 
 // ===== プロバイダー =====
@@ -70,40 +88,64 @@ final selectedPeriodProvider = StateProvider<RankingPeriod>((ref) {
   return RankingPeriod.day; // デフォルトは「日」
 });
 
+/// カスタム期間のプロバイダー
+final customPeriodProvider = StateProvider<CustomPeriod?>((ref) {
+  return null;
+});
+
 /// ランキングデータのプロバイダー
-final rankingDataProvider = Provider.family<List<RankingItem>, RankingPeriod>((ref, period) {
+final rankingDataProvider = Provider<List<RankingItem>>((ref) {
+  final selectedPeriod = ref.watch(selectedPeriodProvider);
+
   // 実際のアプリケーションでは、ここでAPIからデータを取得する
-  // 今回はダミーデータを使用
   List<RankingItem> items;
-  
-  //現在はタブを切り替えるたびにデータを生成している
-  //TODO: 本番ではキャッシュするなどの工夫をする
-  switch (period) {
+
+  switch (selectedPeriod) {
     case RankingPeriod.day:
       items = RankingItem.generateSampleDataWithCurrentUser(count: 15);
       break;
     case RankingPeriod.month:
       items = RankingItem.generateSampleDataWithCurrentUser(count: 12)
-        .map((item) => RankingItem(
-          rank: item.rank,
-          name: item.name,
-          score: item.score + 200, // 月間は少しスコアを上げる
-          avatarUrl: item.avatarUrl,
-          isCurrentUser: item.isCurrentUser,
-        )).toList();
+          .map(
+            (item) => RankingItem(
+              rank: item.rank,
+              name: item.name,
+              score: item.score + 200,
+              avatarUrl: item.avatarUrl,
+              isCurrentUser: item.isCurrentUser,
+            ),
+          )
+          .toList();
       break;
     case RankingPeriod.year:
       items = RankingItem.generateSampleDataWithCurrentUser(count: 20)
-        .map((item) => RankingItem(
-          rank: item.rank,
-          name: item.name,
-          score: item.score + 500, // 年間はもっとスコアを上げる
-          avatarUrl: item.avatarUrl,
-          isCurrentUser: item.isCurrentUser,
-        )).toList();
+          .map(
+            (item) => RankingItem(
+              rank: item.rank,
+              name: item.name,
+              score: item.score + 500,
+              avatarUrl: item.avatarUrl,
+              isCurrentUser: item.isCurrentUser,
+            ),
+          )
+          .toList();
+      break;
+    case RankingPeriod.custom:
+      // カスタム期間のデータを生成
+      items = RankingItem.generateSampleDataWithCurrentUser(count: 18)
+          .map(
+            (item) => RankingItem(
+              rank: item.rank,
+              name: item.name,
+              score: item.score + 300,
+              avatarUrl: item.avatarUrl,
+              isCurrentUser: item.isCurrentUser,
+            ),
+          )
+          .toList();
       break;
   }
-  
+
   // スコア順でソートしてランクを再計算
   // TODO:キャッシュの利用の検討やソートが効率的かを検証する
   items.sort((a, b) => b.score.compareTo(a.score));
@@ -116,15 +158,14 @@ final rankingDataProvider = Provider.family<List<RankingItem>, RankingPeriod>((r
       isCurrentUser: items[i].isCurrentUser,
     );
   }
-  
+
   return items;
 });
 
 /// 現在のユーザーのランキング情報を取得するプロバイダー
 final currentUserRankingProvider = Provider<RankingItem?>((ref) {
-  final selectedPeriod = ref.watch(selectedPeriodProvider);
-  final rankingData = ref.watch(rankingDataProvider(selectedPeriod));
-  
+  final rankingData = ref.watch(rankingDataProvider);
+
   try {
     return rankingData.firstWhere((item) => item.isCurrentUser);
   } catch (e) {
@@ -134,9 +175,8 @@ final currentUserRankingProvider = Provider<RankingItem?>((ref) {
 
 /// トップランキング（上位10位）のプロバイダー
 final topRankingProvider = Provider<List<RankingItem>>((ref) {
-  final selectedPeriod = ref.watch(selectedPeriodProvider);  
-  final rankingData = ref.watch(rankingDataProvider(selectedPeriod));
-  
+  final rankingData = ref.watch(rankingDataProvider);
+
   return rankingData.take(10).toList();
 });
 
@@ -160,13 +200,13 @@ class RankingCard extends StatelessWidget {
 
       //自身のカードのみを強調表示する
       decoration: BoxDecoration(
-        color: isHighlighted 
-          ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
-          : Colors.white,
+        color: isHighlighted
+            ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+            : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: isHighlighted 
-          ? Border.all(color: Theme.of(context).primaryColor, width: 2)
-          : Border.all(color: Colors.grey.shade300),
+        border: isHighlighted
+            ? Border.all(color: Theme.of(context).primaryColor, width: 2)
+            : Border.all(color: Colors.grey.shade300),
         boxShadow: [
           if (isHighlighted)
             BoxShadow(
@@ -189,11 +229,11 @@ class RankingCard extends StatelessWidget {
             // ランク表示
             _buildRankWidget(),
             const SizedBox(width: 16),
-            
+
             // アバター
             _buildAvatar(),
             const SizedBox(width: 16),
-            
+
             // 名前とスコア
             Expanded(
               child: Column(
@@ -203,19 +243,18 @@ class RankingCard extends StatelessWidget {
                     item.name,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500,
-                      color: isHighlighted 
-                        ? Theme.of(context).primaryColor 
-                        : Colors.black87,
+                      fontWeight: isHighlighted
+                          ? FontWeight.bold
+                          : FontWeight.w500,
+                      color: isHighlighted
+                          ? Theme.of(context).primaryColor
+                          : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${item.score}ポイント',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -231,19 +270,31 @@ class RankingCard extends StatelessWidget {
   Widget _buildRankWidget() {
     Color rankColor;
     Widget rankWidget;
-    
+
     switch (item.rank) {
       case 1:
         rankColor = const Color(0xFFFFD700); // 金色
-        rankWidget = const Icon(Icons.emoji_events, color: Colors.white, size: 20);
+        rankWidget = const Icon(
+          Icons.emoji_events,
+          color: Colors.white,
+          size: 20,
+        );
         break;
       case 2:
         rankColor = const Color(0xFFC0C0C0); // 銀色
-        rankWidget = const Icon(Icons.emoji_events, color: Colors.white, size: 20);
+        rankWidget = const Icon(
+          Icons.emoji_events,
+          color: Colors.white,
+          size: 20,
+        );
         break;
       case 3:
         rankColor = const Color(0xFFCD7F32); // 銅色
-        rankWidget = const Icon(Icons.emoji_events, color: Colors.white, size: 20);
+        rankWidget = const Icon(
+          Icons.emoji_events,
+          color: Colors.white,
+          size: 20,
+        );
         break;
       default:
         rankColor = Colors.grey.shade400;
@@ -259,10 +310,7 @@ class RankingCard extends StatelessWidget {
     return Container(
       width: 40,
       height: 40,
-      decoration: BoxDecoration(
-        color: rankColor,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: rankColor, shape: BoxShape.circle),
       child: Center(child: rankWidget),
     );
   }
@@ -276,9 +324,7 @@ class RankingCard extends StatelessWidget {
         shape: BoxShape.circle,
         color: Colors.grey.shade300,
         border: Border.all(
-          color: isHighlighted 
-            ? Colors.blue
-            : Colors.grey.shade400,
+          color: isHighlighted ? Colors.blue : Colors.grey.shade400,
           width: 2,
         ),
       ),
@@ -289,11 +335,7 @@ class RankingCard extends StatelessWidget {
           height: 50,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            return Icon(
-              Icons.person,
-              size: 30,
-              color: Colors.grey.shade600,
-            );
+            return Icon(Icons.person, size: 30, color: Colors.grey.shade600);
           },
         ),
       ),
@@ -308,7 +350,8 @@ class PeriodSelectionTabs extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedPeriod = ref.watch(selectedPeriodProvider);
-    
+    final customPeriod = ref.watch(customPeriodProvider);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -318,34 +361,46 @@ class PeriodSelectionTabs extends ConsumerWidget {
       child: Row(
         children: RankingPeriod.values.map((period) {
           final isSelected = period == selectedPeriod;
-          
+
           return Expanded(
             child: GestureDetector(
               onTap: () {
-                ref.read(selectedPeriodProvider.notifier).state = period;
+                if (period == RankingPeriod.custom) {
+                  _showCustomPeriodDialog(context, ref);
+                } else {
+                  ref.read(selectedPeriodProvider.notifier).state = period;
+                }
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.all(4),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
+                  color: isSelected
+                      ? Theme.of(context).primaryColor
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: isSelected ? [
-                    BoxShadow(
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ] : null,
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: Theme.of(
+                              context,
+                            ).primaryColor.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Text(
-                  period.label,
+                  period == RankingPeriod.custom && customPeriod != null
+                      ? 'カスタム'
+                      : period.label,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: isSelected ? Colors.white : Colors.grey.shade600,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 16,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -355,40 +410,138 @@ class PeriodSelectionTabs extends ConsumerWidget {
       ),
     );
   }
+
+  /// カスタム期間選択ダイアログを表示
+  void _showCustomPeriodDialog(BuildContext context, WidgetRef ref) {
+    DateTime? startDate;
+    DateTime? endDate;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('カスタム期間選択'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(
+                  '開始日: ${startDate?.toString().split(' ')[0] ?? '未選択'}',
+                ),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now().subtract(
+                      const Duration(days: 30),
+                    ),
+                    firstDate: DateTime.now().subtract(
+                      const Duration(days: 365),
+                    ),
+                    lastDate: DateTime.now(),
+                  );
+                  if (date != null) {
+                    setState(() {
+                      startDate = date;
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                title: Text(
+                  '終了日: ${endDate?.toString().split(' ')[0] ?? '未選択'}',
+                ),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate:
+                        startDate ??
+                        DateTime.now().subtract(const Duration(days: 365)),
+                    lastDate: DateTime.now(),
+                  );
+                  if (date != null) {
+                    setState(() {
+                      endDate = date;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: startDate != null && endDate != null
+                  ? () {
+                      ref
+                          .read(customPeriodProvider.notifier)
+                          .state = CustomPeriod(
+                        startDate: startDate!,
+                        endDate: endDate!,
+                      );
+                      ref.read(selectedPeriodProvider.notifier).state =
+                          RankingPeriod.custom;
+                      Navigator.of(context).pop();
+                    }
+                  : null,
+              child: const Text('適用'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-/// 現在のユーザーのランキングを表示するウィジェット
-class CurrentUserRanking extends ConsumerWidget {
-  const CurrentUserRanking({super.key});
+/// 現在のユーザーのランキングを表示するウィジェット（フッター上部固定）
+class CurrentUserRankingFooter extends ConsumerWidget {
+  const CurrentUserRankingFooter({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUserRanking = ref.watch(currentUserRankingProvider);
-    
+
     if (currentUserRanking == null) {
       return const SizedBox.shrink();
     }
 
     return Container(
-      margin: const EdgeInsets.only(top: 16, bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.75), // 75%の背景透過率
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'あなたのランキング',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
-              ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              children: [
+                Text(
+                  'あなたのランキング',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          RankingCard(
-            item: currentUserRanking,
-            isHighlighted: true,
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            child: RankingCard(item: currentUserRanking, isHighlighted: true),
           ),
         ],
       ),
@@ -430,22 +583,13 @@ class CustomBottomNavigationBar extends StatelessWidget {
         unselectedItemColor: Colors.grey.shade400,
         elevation: 0,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'ホーム',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'ホーム'),
           BottomNavigationBarItem(
             icon: Icon(Icons.leaderboard),
             label: 'ランキング',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'プロフィール',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu),
-            label: 'メニュー',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'プロフィール'),
+          BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'メニュー'),
         ],
       ),
     );
@@ -460,88 +604,135 @@ class RankingScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final topRanking = ref.watch(topRankingProvider);
     final selectedPeriod = ref.watch(selectedPeriodProvider);
+    final customPeriod = ref.watch(customPeriodProvider);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text(
           'ランキング',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        actions: [
-          const SettingsButton(),
-        ],
+        actions: [const SettingsButton()],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // 実際のアプリでは、ここでAPIからデータを再取得
-          ref.invalidate(rankingDataProvider);
-          await Future.delayed(const Duration(milliseconds: 500));
-        },
-        child: CustomScrollView(
-          slivers: [
-            // 期間選択タブ
-            SliverToBoxAdapter(
-              child: Container(
-                color: Colors.white,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 16),
-                    const PeriodSelectionTabs(),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-            ),
-            
-            // ランキングヘッダー
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  '${selectedPeriod.label}間ランキング',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(rankingDataProvider);
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: CustomScrollView(
+              slivers: [
+                // 期間選択タブ
+                SliverToBoxAdapter(
+                  child: Container(
+                    color: Colors.white,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        const PeriodSelectionTabs(),
+                        if (selectedPeriod == RankingPeriod.custom &&
+                            customPeriod != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            child: Text(
+                              customPeriod.displayText,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+
+                // ランキングヘッダー
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selectedPeriod == RankingPeriod.custom
+                              ? 'カスタム期間ランキング'
+                              : '${selectedPeriod.label}間ランキング',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _getPeriodDisplayText(selectedPeriod, customPeriod),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ランキングリスト
+                SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final item = topRanking[index];
+                    return RankingCard(
+                      item: item,
+                      isHighlighted: item.isCurrentUser, // 自分のランキングは強調表示
+                    );
+                  }, childCount: topRanking.length),
+                ),
+
+                // 下部余白（フッター分）
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 180), // フッターとボトムナビ分の余白
+                ),
+              ],
             ),
-            
-            // ランキングリスト
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final item = topRanking[index];
-                  return RankingCard(
-                    item: item,
-                    isHighlighted: item.isCurrentUser,
-                  );
-                },
-                childCount: topRanking.length,
-              ),
-            ),
-            
-            // 現在のユーザーのランキング
-            const SliverToBoxAdapter(
-              child: CurrentUserRanking(),
-            ),
-            
-            // 下部余白
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 100), // ボトムナビゲーション分の余白
-            ),
-          ],
-        ),
+          ),
+
+          // フッター上部に固定された現在ユーザーランキング
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 8, // ボトムナビゲーションバーとの余白を最小限に
+            child: const CurrentUserRankingFooter(),
+          ),
+        ],
       ),
-      // 共通のナビゲーションバーはMainNavigationScreenで管理するため削除
     );
+  }
+
+  /// 期間の詳細表示テキストを取得
+  String _getPeriodDisplayText(
+    RankingPeriod period,
+    CustomPeriod? customPeriod,
+  ) {
+    final now = DateTime.now();
+
+    switch (period) {
+      case RankingPeriod.day:
+        return '${now.year}年${now.month}月${now.day}日';
+      case RankingPeriod.month:
+        return '${now.year}年${now.month}月';
+      case RankingPeriod.year:
+        return '${now.year}年';
+      case RankingPeriod.custom:
+        return customPeriod?.displayText ?? 'カスタム期間';
+    }
   }
 }

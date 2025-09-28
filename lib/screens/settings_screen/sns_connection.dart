@@ -5,17 +5,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// SNS連携の種類
 enum SNSType {
-  google('Google', Icons.g_mobiledata, Color(0xFF4285F4)),
-  x('X (Twitter)', Icons.close, Color(0xFF000000)),
-  instagram('Instagram', Icons.camera_alt, Color(0xFFE4405F)),
-  facebook('Facebook', Icons.facebook, Color(0xFF1877F2)),
-  line('LINE', Icons.chat_bubble, Color(0xFF00B900)),
-  apple('Apple Account', Icons.apple, Color(0xFF000000));
+  google('Google', 'lib/icon/logo-black.png', Color(0xFF4285F4)),
+  x('X (Twitter)', null, Color(0xFF000000)),
+  instagram(
+    'Instagram',
+    'lib/icon/Instagram_Glyph_Gradient.png',
+    Color(0xFFE4405F),
+  ),
+  facebook('Facebook', 'lib/icon/Facebook_Logo_Primary.png', Color(0xFF1877F2)),
+  line('LINE', 'lib/icon/LINE_Brand_icon.png', Color(0xFF00B900)),
+  apple('Apple Account', 'lib/icon/icons8-mac-os-50.png', Color(0xFF000000));
 
-  const SNSType(this.displayName, this.icon, this.color);
+  const SNSType(this.displayName, this.iconPath, this.color);
   final String displayName;
-  final IconData icon;
+  final String? iconPath;
   final Color color;
+
+  /// フォールバック用のアイコン
+  IconData get fallbackIcon {
+    switch (this) {
+      case SNSType.google:
+        return Icons.g_mobiledata;
+      case SNSType.x:
+        return Icons.close;
+      case SNSType.instagram:
+        return Icons.camera_alt;
+      case SNSType.facebook:
+        return Icons.facebook;
+      case SNSType.line:
+        return Icons.chat_bubble;
+      case SNSType.apple:
+        return Icons.apple;
+    }
+  }
 }
 
 /// SNS連携状態のモデル
@@ -55,16 +77,12 @@ class SNSConnectionStatus {
 class SNSConnectionState {
   final Map<SNSType, SNSConnectionStatus> connections;
 
-  const SNSConnectionState({
-    required this.connections,
-  });
+  const SNSConnectionState({required this.connections});
 
   SNSConnectionState copyWith({
     Map<SNSType, SNSConnectionStatus>? connections,
   }) {
-    return SNSConnectionState(
-      connections: connections ?? this.connections,
-    );
+    return SNSConnectionState(connections: connections ?? this.connections);
   }
 
   /// 連携済みのSNS数を取得
@@ -74,7 +92,8 @@ class SNSConnectionState {
 
   /// 特定のSNSの連携状態を取得
   SNSConnectionStatus getConnectionStatus(SNSType type) {
-    return connections[type] ?? SNSConnectionStatus(type: type, isConnected: false);
+    return connections[type] ??
+        SNSConnectionStatus(type: type, isConnected: false);
   }
 }
 
@@ -85,7 +104,7 @@ class SNSRepository {
   /// 初期のSNS連携状態を取得
   SNSConnectionState getInitialConnectionState() {
     final connections = <SNSType, SNSConnectionStatus>{};
-    
+
     for (final snsType in SNSType.values) {
       connections[snsType] = SNSConnectionStatus(
         type: snsType,
@@ -99,10 +118,10 @@ class SNSRepository {
   /// SNS連携を実行（ダミー実装）
   Future<bool> connectSNS(SNSType type) async {
     debugPrint('${type.displayName}との連携を開始...');
-    
+
     // 実際の連携処理をシミュレート
     await Future.delayed(const Duration(seconds: 2));
-    
+
     // ダミーデータでの成功シミュレーション
     debugPrint('${type.displayName}との連携が完了しました');
     return true; // 実際はOAuth認証の結果
@@ -111,10 +130,10 @@ class SNSRepository {
   /// SNS連携を解除（ダミー実装）
   Future<bool> disconnectSNS(SNSType type) async {
     debugPrint('${type.displayName}との連携を解除...');
-    
+
     // 実際の解除処理をシミュレート
     await Future.delayed(const Duration(seconds: 1));
-    
+
     debugPrint('${type.displayName}との連携を解除しました');
     return true;
   }
@@ -142,24 +161,25 @@ class SNSRepository {
 // ===== Application Layer =====
 
 /// SNS連携のプロバイダー
-final snsRepositoryProvider = Provider<SNSRepository>(
-  (ref) => SNSRepository(),
-);
+final snsRepositoryProvider = Provider<SNSRepository>((ref) => SNSRepository());
 
 /// SNS連携状態の管理
 class SNSConnectionNotifier extends StateNotifier<SNSConnectionState> {
   final SNSRepository _repository;
 
-  SNSConnectionNotifier(this._repository) : super(_repository.getInitialConnectionState());
+  SNSConnectionNotifier(this._repository)
+    : super(_repository.getInitialConnectionState());
 
   /// SNSとの連携を実行
   Future<bool> connectSNS(SNSType type) async {
     final success = await _repository.connectSNS(type);
-    
+
     if (success) {
       final accountInfo = _repository.getAccountInfo(type);
-      final updatedConnections = Map<SNSType, SNSConnectionStatus>.from(state.connections);
-      
+      final updatedConnections = Map<SNSType, SNSConnectionStatus>.from(
+        state.connections,
+      );
+
       updatedConnections[type] = SNSConnectionStatus(
         type: type,
         isConnected: true,
@@ -167,39 +187,40 @@ class SNSConnectionNotifier extends StateNotifier<SNSConnectionState> {
         accountId: accountInfo['id'],
         connectedAt: DateTime.now(),
       );
-      
+
       state = SNSConnectionState(connections: updatedConnections);
     }
-    
+
     return success;
   }
 
   /// SNSとの連携を解除
   Future<bool> disconnectSNS(SNSType type) async {
     final success = await _repository.disconnectSNS(type);
-    
+
     if (success) {
-      final updatedConnections = Map<SNSType, SNSConnectionStatus>.from(state.connections);
-      
+      final updatedConnections = Map<SNSType, SNSConnectionStatus>.from(
+        state.connections,
+      );
+
       updatedConnections[type] = SNSConnectionStatus(
         type: type,
         isConnected: false,
       );
-      
+
       state = SNSConnectionState(connections: updatedConnections);
     }
-    
+
     return success;
   }
 }
 
 /// SNS連携状態のStateNotifierProvider
-final snsConnectionProvider = StateNotifierProvider<SNSConnectionNotifier, SNSConnectionState>(
-  (ref) {
-    final repository = ref.watch(snsRepositoryProvider);
-    return SNSConnectionNotifier(repository);
-  },
-);
+final snsConnectionProvider =
+    StateNotifierProvider<SNSConnectionNotifier, SNSConnectionState>((ref) {
+      final repository = ref.watch(snsRepositoryProvider);
+      return SNSConnectionNotifier(repository);
+    });
 
 // ===== Presentation Layer =====
 
@@ -217,10 +238,7 @@ class SNSConnectionScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text(
           'SNS連携',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -261,10 +279,7 @@ class SNSConnectionScreen extends ConsumerWidget {
                   '• 簡単ログイン機能\n'
                   '• プロフィール情報の同期\n'
                   '• SNSへの投稿連携',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.blue.shade700,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.blue.shade700),
                 ),
               ],
             ),
@@ -326,10 +341,13 @@ class SNSConnectionScreen extends ConsumerWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: connectionState.connectedCount > 0 
-                        ? Colors.green.shade100 
+                    color: connectionState.connectedCount > 0
+                        ? Colors.green.shade100
                         : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -338,8 +356,8 @@ class SNSConnectionScreen extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: connectionState.connectedCount > 0 
-                          ? Colors.green.shade700 
+                      color: connectionState.connectedCount > 0
+                          ? Colors.green.shade700
                           : Colors.grey.shade600,
                     ),
                   ),
@@ -379,7 +397,10 @@ class SNSConnectionScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.warning_amber_outlined, color: Colors.orange.shade600),
+                    Icon(
+                      Icons.warning_amber_outlined,
+                      color: Colors.orange.shade600,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       '注意事項',
@@ -396,10 +417,7 @@ class SNSConnectionScreen extends ConsumerWidget {
                   '• SNS連携時には各サービスの利用規約に同意が必要です\n'
                   '• 連携を解除してもアカウント情報は保持されます\n'
                   '• 連携情報は安全に暗号化して保存されます',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.orange.shade700,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.orange.shade700),
                 ),
               ],
             ),
@@ -420,7 +438,7 @@ class SNSConnectionScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: status.isConnected 
+        border: status.isConnected
             ? Border.all(color: Colors.green.shade300, width: 1.5)
             : Border.all(color: Colors.grey.shade200),
         boxShadow: [
@@ -432,7 +450,10 @@ class SNSConnectionScreen extends ConsumerWidget {
         ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
+        ),
         leading: Container(
           width: 48,
           height: 48,
@@ -440,11 +461,28 @@ class SNSConnectionScreen extends ConsumerWidget {
             color: status.type.color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
-            status.type.icon,
-            color: status.type.color,
-            size: 24,
-          ),
+          child: status.type.iconPath != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    status.type.iconPath!,
+                    width: 28,
+                    height: 28,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        status.type.fallbackIcon,
+                        color: status.type.color,
+                        size: 24,
+                      );
+                    },
+                  ),
+                )
+              : Icon(
+                  status.type.fallbackIcon,
+                  color: status.type.color,
+                  size: 24,
+                ),
         ),
         title: Text(
           status.type.displayName,
@@ -481,19 +519,16 @@ class SNSConnectionScreen extends ConsumerWidget {
               )
             : const Text(
                 '未連携',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
         trailing: ElevatedButton(
           onPressed: status.isConnected ? onDisconnect : onConnect,
           style: ElevatedButton.styleFrom(
-            backgroundColor: status.isConnected 
-                ? Colors.red.shade100 
+            backgroundColor: status.isConnected
+                ? Colors.red.shade100
                 : status.type.color,
-            foregroundColor: status.isConnected 
-                ? Colors.red.shade700 
+            foregroundColor: status.isConnected
+                ? Colors.red.shade700
                 : Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -501,10 +536,7 @@ class SNSConnectionScreen extends ConsumerWidget {
           ),
           child: Text(
             status.isConnected ? '解除' : '連携',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ),
       ),
@@ -547,8 +579,8 @@ class SNSConnectionScreen extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          success 
-              ? '${snsType.displayName}との連携が完了しました' 
+          success
+              ? '${snsType.displayName}との連携が完了しました'
               : '${snsType.displayName}との連携に失敗しました',
         ),
         backgroundColor: success ? Colors.green : Colors.red,
