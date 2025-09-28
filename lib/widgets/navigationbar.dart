@@ -100,11 +100,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     // 元のUI画面に復元
     switch (_currentIndex) {
       case NavIndex.home:
-        return const PointGetScreen();
+        return const ProfileScreen();
       case NavIndex.ranking:
         return const RankingScreen();
       case NavIndex.profile:
-        return const ProfileScreen();
+        return const PointGetScreen();
       case NavIndex.menu:
         return const GachaScreen();
     }
