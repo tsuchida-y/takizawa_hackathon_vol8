@@ -3,33 +3,36 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ===== データモデル =====
 
 /// イベント情報のデータモデル
 class EventInfo {
   final String title;
-  final String description;
-  final DateTime startDate;
-  final DateTime? endDate; // 終了日（オプション）
-  final String location;
+  final String content;
+  final DateTime startDay;
+  final DateTime? endDay; // 終了日（オプション）
+  final String place;
   final Color color;
+  final String id;
 
   const EventInfo({
     required this.title,
-    required this.description,
-    required this.startDate,
-    this.endDate,
-    required this.location,
+    required this.content,
+    required this.startDay,
+    this.endDay,
+    required this.place,
     required this.color,
+    required this.id,
   });
 
   /// 日付表示用の文字列を取得
   String get dateString {
-    if (endDate == null || _isSameDay(startDate, endDate!)) {
-      return '${startDate.year}/${startDate.month.toString().padLeft(2, '0')}/${startDate.day.toString().padLeft(2, '0')}';
+    if (endDay == null || _isSameDay(startDay, endDay!)) {
+      return '${startDay.year}/${startDay.month.toString().padLeft(2, '0')}/${startDay.day.toString().padLeft(2, '0')}';
     } else {
-      return '${startDate.year}/${startDate.month.toString().padLeft(2, '0')}/${startDate.day.toString().padLeft(2, '0')}~${endDate!.year}/${endDate!.month.toString().padLeft(2, '0')}/${endDate!.day.toString().padLeft(2, '0')}';
+      return '${startDay.year}/${startDay.month.toString().padLeft(2, '0')}/${startDay.day.toString().padLeft(2, '0')}~${endDay!.year}/${endDay!.month.toString().padLeft(2, '0')}/${endDay!.day.toString().padLeft(2, '0')}';
     }
   }
 
@@ -40,40 +43,35 @@ class EventInfo {
         date1.day == date2.day;
   }
 
-  /// サンプルイベントデータを生成
-  static List<EventInfo> generateSampleEvents() {
-    return [
-      EventInfo(
-        title: 'ハッカソン Vol.8',
-        description: 'モバイルアプリ開発ハッカソン',
-        startDate: DateTime(2025, 1, 15),
-        location: 'Tokyo Tech Hub',
-        color: Colors.blue,
-      ),
-      EventInfo(
-        title: 'プログラミング勉強会',
-        description: 'Flutter開発の基礎から応用まで',
-        startDate: DateTime(2025, 1, 20),
-        location: 'オンライン',
-        color: Colors.green,
-      ),
-      EventInfo(
-        title: 'テックカンファレンス',
-        description: '最新技術トレンドの紹介',
-        startDate: DateTime(2025, 2, 5),
-        endDate: DateTime(2025, 2, 7), // 3日間のイベント
-        location: 'Shibuya Sky',
-        color: Colors.purple,
-      ),
-      EventInfo(
-        title: 'アプリコンテスト',
-        description: '学生向けアプリ開発コンテスト',
-        startDate: DateTime(2025, 2, 12),
-        endDate: DateTime(2025, 2, 14), // 3日間のコンテスト
-        location: 'Akihabara Center',
-        color: Colors.orange,
-      ),
+  /// Firestoreドキュメントからイベント情報を生成
+  factory EventInfo.fromFirestore(Map<String, dynamic> data, String documentId) {
+    // カラーはランダムに生成（Firestoreに保存されていないため）
+    final List<Color> colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.purple,
+      Colors.orange,
+      Colors.pink,
+      Colors.teal,
+      Colors.amber,
+      Colors.indigo,
     ];
+    final random = math.Random();
+    final color = colors[random.nextInt(colors.length)];
+    
+    return EventInfo(
+      id: documentId,
+      title: data['title'] ?? '無題のイベント',
+      content: data['content'] ?? '詳細なし',
+      startDay: data['startDay'] != null 
+          ? (data['startDay'] as Timestamp).toDate()
+          : DateTime.now(),
+      endDay: data['endDay'] != null 
+          ? (data['endDay'] as Timestamp).toDate()
+          : null,
+      place: data['place'] ?? '場所未定',
+      color: color,
+    );
   }
 }
 
@@ -165,8 +163,19 @@ final userProfileProvider = Provider<UserProfile>((ref) {
 });
 
 /// イベント情報プロバイダー
-final eventInfoProvider = Provider<List<EventInfo>>((ref) {
-  return EventInfo.generateSampleEvents();
+final eventInfoProvider = FutureProvider<List<EventInfo>>((ref) async {
+  try {
+    // Firestoreからイベント情報を取得
+    final snapshot = await FirebaseFirestore.instance.collection('eventInfo').get();
+    
+    // Firestoreのデータからイベント情報を生成
+    return snapshot.docs
+        .map((doc) => EventInfo.fromFirestore(doc.data(), doc.id))
+        .toList();
+  } catch (e) {
+    print('イベント情報の取得に失敗しました: $e');
+    throw Exception('イベント情報の取得に失敗しました');
+  }
 });
 
 /// ヒートマップデータプロバイダー
@@ -307,7 +316,7 @@ class EventInfoSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final events = ref.watch(eventInfoProvider);
+    final eventsAsync = ref.watch(eventInfoProvider);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -328,93 +337,114 @@ class EventInfoSection extends ConsumerWidget {
           const SizedBox(height: 12),
           SizedBox(
             height: 140,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: events.length,
-              itemBuilder: (context, index) {
-                final event = events[index];
-                return Container(
-                  width: 280,
-                  margin: const EdgeInsets.only(right: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: event.color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: event.color.withValues(alpha: 0.3),
+            child: eventsAsync.when(
+              data: (events) {
+                if (events.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'イベントはありません',
+                      style: TextStyle(color: Colors.grey.shade600),
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                  );
+                }
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: events.length,
+                  itemBuilder: (context, index) {
+                    final event = events[index];
+                    return Container(
+                      width: 280,
+                      margin: const EdgeInsets.only(right: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: event.color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: event.color.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: event.color,
-                              shape: BoxShape.circle,
-                            ),
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: event.color,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                event.dateString,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(height: 8),
                           Text(
-                            event.dateString,
+                            event.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            event.content,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: Colors.grey.shade700,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        event.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        event.description,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade700,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const Spacer(),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            size: 12,
-                            color: Colors.grey.shade500,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              event.location,
-                              style: TextStyle(
-                                fontSize: 11,
+                          const Spacer(),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.location_on,
+                                size: 12,
                                 color: Colors.grey.shade500,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  event.place,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
+              loading: () => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              error: (error, stack) => Center(
+                child: Text(
+                  'エラーが発生しました: $error',
+                  style: TextStyle(color: Colors.red.shade800),
+                ),
+              ),
             ),
           ),
         ],
