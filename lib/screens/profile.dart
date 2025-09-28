@@ -1,9 +1,11 @@
 import 'dart:math' as math;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:takizawa_hackathon_vol8/providers/user_profile_provider.dart';
 
 // ===== データモデル =====
 
@@ -126,41 +128,11 @@ class HeatmapData {
   }
 }
 
-/// ユーザープロフィール情報のモデル
-class UserProfile {
-  final String name;
-  final String avatarUrl;
-  final int totalPoints;
-  final int currentStreak;
-  final int maxStreak;
-  final String joinDate;
 
-  const UserProfile({
-    required this.name,
-    required this.avatarUrl,
-    required this.totalPoints,
-    required this.currentStreak,
-    required this.maxStreak,
-    required this.joinDate,
-  });
-
-  /// サンプルユーザープロフィールデータ
-  static const UserProfile sampleProfile = UserProfile(
-    name: 'あなた',
-    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=currentuser',
-    totalPoints: 2548,
-    currentStreak: 12,
-    maxStreak: 45,
-    joinDate: '2024/03/15',
-  );
-}
 
 // ===== プロバイダー =====
 
-/// ユーザープロフィールプロバイダー
-final userProfileProvider = Provider<UserProfile>((ref) {
-  return UserProfile.sampleProfile;
-});
+
 
 /// イベント情報プロバイダー
 final eventInfoProvider = FutureProvider<List<EventInfo>>((ref) async {
@@ -201,8 +173,8 @@ class UserProfileSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(userProfileProvider);
-
+    final profile = ref.watch(sharedUserProfileProvider);
+    
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -234,29 +206,14 @@ class UserProfileSection extends ConsumerWidget {
               ],
             ),
             child: ClipOval(
-              child: Image.network(
-                profile.avatarUrl,
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey.shade300,
-                    child: const Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Colors.grey,
-                    ),
-                  );
-                },
-              ),
+              child: _buildProfileImage(profile),
             ),
           ),
           const SizedBox(height: 16),
 
           // ユーザー名
           Text(
-            profile.name,
+            profile.displayName,
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -283,6 +240,48 @@ class UserProfileSection extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// プロフィール画像を構築
+  Widget _buildProfileImage(UserProfile profile) {
+    // プロフィール画像パスがある場合はファイルから読み込み
+    if (profile.profileImagePath != null) {
+      final file = File(profile.profileImagePath!);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildDefaultAvatar(profile);
+          },
+        );
+      }
+    }
+    
+    // デフォルトアバターまたはネットワーク画像
+    return Image.network(
+      profile.avatarUrl,
+      width: 80,
+      height: 80,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return _buildDefaultAvatar(profile);
+      },
+    );
+  }
+
+  /// デフォルトアバターを構築
+  Widget _buildDefaultAvatar(UserProfile profile) {
+    return Container(
+      color: Colors.grey.shade300,
+      child: const Icon(
+        Icons.person,
+        size: 40,
+        color: Colors.grey,
       ),
     );
   }
@@ -1031,7 +1030,7 @@ class ProfileScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           // 実際のアプリでは、ここでAPIからデータを再取得
-          ref.invalidate(userProfileProvider);
+          ref.invalidate(sharedUserProfileProvider);
           ref.invalidate(eventInfoProvider);
           ref.invalidate(heatmapDataProvider);
           await Future.delayed(const Duration(milliseconds: 500));

@@ -360,63 +360,101 @@ class NotificationScreen extends ConsumerWidget {
 
   /// テスト用お知らせ通知を送信
   Future<void> _sendTestInformationNotification(BuildContext context) async {
-    final notificationService = NotificationService();
-    await notificationService.initialize();
-    
-    final hasPermission = await notificationService.requestPermission();
-    if (!hasPermission) {
-      // 権限がない場合の処理
+    try {
+      debugPrint('=== テスト通知開始 ===');
+      debugPrint('テスト通知ボタンが押されました');
+      
+      debugPrint('NotificationService インスタンス作成中...');
+      final notificationService = NotificationService();
+      
+      debugPrint('通知サービス初期化中...');
+      await notificationService.initialize();
+      debugPrint('通知サービス初期化完了');
+      
+      debugPrint('通知権限をリクエスト中...');
+      final hasPermission = await notificationService.requestPermission();
+      debugPrint('通知権限結果: $hasPermission');
+      
+      if (!hasPermission) {
+        debugPrint('通知権限がありません');
+        // 権限がない場合の処理
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('通知権限が必要です。設定から許可してください。'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      debugPrint('お知らせ通知を送信中...');
+      await notificationService.showInformationNotification(
+        title: '新しいお知らせ',
+        body: 'テスト用のお知らせ通知です。実際の通知設定が正常に動作しています。',
+        payload: 'test_information',
+      );
+      debugPrint('お知らせ通知送信完了');
+
+      debugPrint('成功メッセージを表示中...');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('通知権限が必要です。設定から許可してください。'),
+          content: Text('お知らせ通知を送信しました'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+      debugPrint('=== テスト通知終了 ===');
+    } catch (e, stackTrace) {
+      debugPrint('テスト通知送信でエラーが発生: $e');
+      debugPrint('スタックトレース: $stackTrace');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('通知送信でエラーが発生しました: $e'),
           backgroundColor: Colors.red,
         ),
       );
-      return;
     }
-
-    await notificationService.showInformationNotification(
-      title: '新しいお知らせ',
-      body: 'テスト用のお知らせ通知です。実際の通知設定が正常に動作しています。',
-      payload: 'test_information',
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('お知らせ通知を送信しました'),
-        backgroundColor: Colors.blue,
-      ),
-    );
   }
 
   /// テスト用ポイント獲得通知を送信
   Future<void> _sendTestPointNotification(BuildContext context) async {
-    final notificationService = NotificationService();
-    await notificationService.initialize();
-    
-    final hasPermission = await notificationService.requestPermission();
-    if (!hasPermission) {
-      // 権限がない場合の処理
+    try {
+      debugPrint('テストポイント通知ボタンが押されました');
+      
+      final notificationService = NotificationService();
+      await notificationService.initialize();
+      
+      final hasPermission = await notificationService.requestPermission();
+      if (!hasPermission) {
+        // 権限がない場合の処理
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('通知権限が必要です。設定から許可してください。'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      await notificationService.showPointNotification(
+        title: 'ポイント獲得！',
+        body: '100ポイントを獲得しました！テスト用のポイント通知です。',
+        payload: 'test_point',
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('通知権限が必要です。設定から許可してください。'),
+          content: Text('ポイント獲得通知を送信しました'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      debugPrint('テストポイント通知送信でエラーが発生: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('通知送信でエラーが発生しました: $e'),
           backgroundColor: Colors.red,
         ),
       );
-      return;
     }
-
-    await notificationService.showPointNotification(
-      title: 'ポイント獲得！',
-      body: '100ポイントを獲得しました！テスト用のポイント通知です。',
-      payload: 'test_point',
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('ポイント獲得通知を送信しました'),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 }

@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'gacha.dart'; // ポイントシステムを共有するためのインポート
 import 'setting.dart';
+import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart';
+import 'package:takizawa_hackathon_vol8/service/location_service_lite.dart';
+import 'package:takizawa_hackathon_vol8/service/notification_service.dart';
+import 'package:takizawa_hackathon_vol8/providers/user_profile_provider.dart';
+import 'package:takizawa_hackathon_vol8/screens/ranking.dart';
 
 /// ポイント獲得アクションの種類を定義する列挙型
 /// 各アクションに対応するポイント獲得手段を区別し、地域活性化を促進する
@@ -56,7 +61,152 @@ class SocialPlatformInfo {
   });
 }
 
-// ポイントシステムはgacha.dartから共有
+/// ポイント管理の状態を定義するクラス
+/// アプリ全体で共有されるポイント系システムの状態管理
+class PointState {
+  final int currentPoints; // ユーザーの現在所持ポイント
+  final bool isLoading; // ポイント操作中のローディング状態
+  final String? errorMessage; // エラーメッセージ（オプション）
+  final bool isLocationTrackingEnabled; // 現在地追跡機能のON/OFF状態
+  final bool isLocationLoading; // 位置情報取得中のローディング状態
+
+  const PointState({
+    this.currentPoints = 1000, // 初期ポイント
+    this.isLoading = false,
+    this.errorMessage,
+    this.isLocationTrackingEnabled = false,
+    this.isLocationLoading = false,
+  });
+
+  PointState copyWith({
+    int? currentPoints,
+    bool? isLoading,
+    String? errorMessage,
+    bool? isLocationTrackingEnabled,
+    bool? isLocationLoading,
+  }) {
+    return PointState(
+      currentPoints: currentPoints ?? this.currentPoints,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: errorMessage ?? this.errorMessage,
+      isLocationTrackingEnabled:
+          isLocationTrackingEnabled ?? this.isLocationTrackingEnabled,
+      isLocationLoading: isLocationLoading ?? this.isLocationLoading,
+    );
+  }
+}
+
+/// ポイント管理のコントローラー
+class PointController extends StateNotifier<PointState> {
+  final LocationRepositoryLite _locationRepository;
+  final NotificationService _notificationService;
+  final Ref _ref;
+
+  PointController(this._locationRepository, this._notificationService, this._ref) 
+      : super(const PointState());
+
+  void addPoints(int points) {
+    if (points <= 0) return;
+
+    final newTotalPoints = state.currentPoints + points;
+    state = state.copyWith(
+      currentPoints: newTotalPoints,
+      errorMessage: null,
+    );
+    
+    // プロフィールのポイント情報も更新
+    _ref.read(sharedUserProfileProvider.notifier).updatePoints(
+      newTotalPoints,
+      state.currentPoints, // 現在の連続日数（実際は日数ロジックが必要）
+      state.currentPoints, // 最長連続日数（実際はロジックが必要）
+    );
+    
+    // ランキングデータも無効化して再計算を促す
+    _ref.invalidate(rankingDataProvider);
+  }
+
+  bool consumePoints(int points) {
+    if (points <= 0) return false;
+    if (state.currentPoints < points) {
+      state = state.copyWith(errorMessage: 'ポイントが不足しています');
+      return false;
+    }
+
+    state = state.copyWith(
+      currentPoints: state.currentPoints - points,
+      errorMessage: null,
+    );
+    return true;
+  }
+
+  void clearError() {
+    state = state.copyWith(errorMessage: null);
+  }
+
+  /// 位置情報追跡の有効/無効を切り替え
+  void toggleLocationTracking() {
+    state = state.copyWith(
+      isLocationTrackingEnabled: !state.isLocationTrackingEnabled,
+    );
+  }
+
+  /// 位置情報を取得してポイントを獲得
+  Future<bool> getLocationAndEarnPoints() async {
+    state = state.copyWith(isLocationLoading: true, errorMessage: null);
+    
+    try {
+      final location = await _locationRepository.getCurrentLocationWithAddress(
+        settings: AppLocationSettingsLite.balanced,
+      );
+      
+      if (location != null) {
+        const points = 100;
+        addPoints(points);
+        
+        // ポイント獲得通知を送信
+        await _notificationService.showPointNotification(
+          title: '\u4f4d\u7f6e\u60c5\u5831\u53d6\u5f97\u5b8c\u4e86\uff01',
+          body: '+${points}pt\u7372\u5f97\u3057\u307e\u3057\u305f\u3002\u4f4d\u7f6e: ${location.address ?? "\u4f4d\u7f6e\u60c5\u5831\u3092\u53d6\u5f97\u3057\u307e\u3057\u305f"}',
+        );
+        
+        state = state.copyWith(isLocationLoading: false);
+        return true;
+      } else {
+        state = state.copyWith(
+          isLocationLoading: false,
+          errorMessage: '位置情報の取得に失敗しました。権限を確認してください。',
+        );
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLocationLoading: false,
+        errorMessage: '位置情報の取得中にエラーが発生しました: $e',
+      );
+      return false;
+    }
+  }
+
+  /// ポイント獲得時に通知を送信
+  Future<void> addPointsWithNotification(int points, String title, String description) async {
+    if (points <= 0) return;
+
+    addPoints(points);
+    
+    // ポイント獲得通知を送信
+    await _notificationService.showPointNotification(
+      title: title,
+      body: '+${points}pt\u7372\u5f97\uff01 $description',
+    );
+  }
+}
+
+/// ポイント管理のプロバイダー
+final pointProvider = StateNotifierProvider<PointController, PointState>((ref) {
+  final locationRepository = ref.watch(locationRepositoryLiteProvider);
+  final notificationService = NotificationService();
+  return PointController(locationRepository, notificationService, ref);
+});
 
 /// ポイント獲得アクションのサンプルデータ
 final pointActionsProvider = Provider<List<PointAction>>((ref) {
@@ -345,13 +495,17 @@ class PointGetScreen extends ConsumerWidget {
                                       ),
                                     ),
                                     ElevatedButton(
-                                      onPressed: () => _handlePointAction(
-                                        ref,
-                                        context,
-                                        action,
-                                      ),
+                                      onPressed: (action.type == PointActionType.location && pointState.isLocationLoading) 
+                                          ? null 
+                                          : () => _handlePointAction(
+                                                ref,
+                                                context,
+                                                action,
+                                              ),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue,
+                                        backgroundColor: (action.type == PointActionType.location && pointState.isLocationLoading)
+                                            ? Colors.blue.shade400
+                                            : Colors.blue,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
@@ -359,7 +513,16 @@ class PointGetScreen extends ConsumerWidget {
                                           ),
                                         ),
                                       ),
-                                      child: const Text('実行'),
+                                      child: (action.type == PointActionType.location && pointState.isLocationLoading)
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                              ),
+                                            )
+                                          : const Text('実行'),
                                     ),
                                   ],
                                 ),
@@ -438,15 +601,39 @@ class PointGetScreen extends ConsumerWidget {
     WidgetRef ref,
     BuildContext context,
     PointAction action,
-  ) {
-    ref.read(pointProvider.notifier).addPoints(action.points);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${action.title}完了！+${action.points}pt獲得'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  ) async {
+    switch (action.type) {
+      case PointActionType.location:
+        // 位置情報取得の実際の処理
+        final success = await ref.read(pointProvider.notifier).getLocationAndEarnPoints();
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${action.title}完了！+${action.points}pt獲得'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        break;
+      case PointActionType.event:
+      case PointActionType.product:
+      case PointActionType.socialComment:
+        // その他のアクションは通知付きポイント獲得
+        await ref.read(pointProvider.notifier).addPointsWithNotification(
+          action.points,
+          '${action.title}完了！',
+          action.description,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${action.title}完了！+${action.points}pt獲得'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+    }
   }
 
   /// SNS投稿ダイアログを表示
