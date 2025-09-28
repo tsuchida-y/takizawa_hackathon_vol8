@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'gacha.dart'; // ポイントシステムを共有するためのインポート
 import 'setting.dart';
-import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart';
 import 'package:takizawa_hackathon_vol8/service/location_service_lite.dart';
 import 'package:takizawa_hackathon_vol8/service/notification_service.dart';
 import 'package:takizawa_hackathon_vol8/providers/user_profile_provider.dart';
 import 'package:takizawa_hackathon_vol8/screens/ranking.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// ポイント獲得アクションの種類を定義する列挙型
 /// 各アクションに対応するポイント獲得手段を区別し、地域活性化を促進する
@@ -105,7 +104,7 @@ class PointController extends StateNotifier<PointState> {
   PointController(this._locationRepository, this._notificationService, this._ref) 
       : super(const PointState());
 
-  void addPoints(int points) {
+  Future<void> addPoints(int points) async {
     if (points <= 0) return;
 
     final newTotalPoints = state.currentPoints + points;
@@ -120,6 +119,44 @@ class PointController extends StateNotifier<PointState> {
       state.currentPoints, // 現在の連続日数（実際は日数ロジックが必要）
       state.currentPoints, // 最長連続日数（実際はロジックが必要）
     );
+    
+    // Firestoreのポイント情報を更新
+    try {
+      final firestore = FirebaseFirestore.instance;
+      const String userId = '1'; // 固定のユーザーID
+      final pointsRef = firestore.collection('point').doc(userId);
+      
+      // 日付ベースの期間ポイントも更新
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
+      
+      // ドキュメントが存在するか確認し、存在しなければ作成
+      final docSnapshot = await pointsRef.get();
+      if (!docSnapshot.exists) {
+        await pointsRef.set({
+          'totalPoint': newTotalPoints,
+          'nowPoint': newTotalPoints, // nowPointも追加
+          'dayPoint': points,
+          'monthPoint': points,
+          'yearPoint': points,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'lastPointDate': today,
+        });
+      } else {
+        // 既存ドキュメントの更新
+        await pointsRef.update({
+          'totalPoint': newTotalPoints,
+          'nowPoint': newTotalPoints, // nowPointも更新
+          'dayPoint': FieldValue.increment(points),
+          'monthPoint': FieldValue.increment(points),
+          'yearPoint': FieldValue.increment(points),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'lastPointDate': today,
+        });
+      }
+    } catch (e) {
+      debugPrint('Firestoreポイント更新エラー: $e');
+    }
     
     // ランキングデータも無効化して再計算を促す
     _ref.invalidate(rankingDataProvider);
@@ -141,6 +178,38 @@ class PointController extends StateNotifier<PointState> {
 
   void clearError() {
     state = state.copyWith(errorMessage: null);
+  }
+  
+  /// Firestoreからポイント情報を最新化
+  Future<void> refreshPoints() async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      const String userId = '1'; // 固定のユーザーID
+      final pointDoc = await firestore.collection('point').doc(userId).get();
+      
+      if (pointDoc.exists) {
+        final data = pointDoc.data();
+        if (data != null) {
+          // nowPointを優先的に取得、存在しなければtotalPointを使用
+          final points = data.containsKey('nowPoint') ? 
+              data['nowPoint'] as int : 
+              data.containsKey('totalPoint') ? 
+                  data['totalPoint'] as int : 
+                  state.currentPoints;
+                  
+          state = state.copyWith(currentPoints: points);
+          
+          // プロフィール情報も更新
+          _ref.read(sharedUserProfileProvider.notifier).updatePoints(
+            points,
+            state.currentPoints, // 連続日数
+            state.currentPoints, // 最長連続日数
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Firestoreポイント取得エラー: $e');
+    }
   }
 
   /// 位置情報追跡の有効/無効を切り替え
@@ -191,7 +260,7 @@ class PointController extends StateNotifier<PointState> {
   Future<void> addPointsWithNotification(int points, String title, String description) async {
     if (points <= 0) return;
 
-    addPoints(points);
+    await addPoints(points);
     
     // ポイント獲得通知を送信
     await _notificationService.showPointNotification(
@@ -270,11 +339,26 @@ final socialPlatformsProvider = Provider<List<SocialPlatformInfo>>((ref) {
 });
 
 /// ポイントゲット画面
-class PointGetScreen extends ConsumerWidget {
+class PointGetScreen extends ConsumerStatefulWidget {
   const PointGetScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PointGetScreen> createState() => _PointGetScreenState();
+}
+
+class _PointGetScreenState extends ConsumerState<PointGetScreen> {
+  @override
+  void initState() {
+    super.initState();
+    
+    // 画面表示時にFirestoreからポイント情報を取得
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(pointProvider.notifier).refreshPoints();
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
     final pointState = ref.watch(pointProvider);
     final pointActions = ref.watch(pointActionsProvider);
 
@@ -597,7 +681,7 @@ class PointGetScreen extends ConsumerWidget {
     );
   }
 
-  void _handlePointAction(
+  Future<void> _handlePointAction(
     WidgetRef ref,
     BuildContext context,
     PointAction action,
@@ -784,16 +868,16 @@ class PointGetScreen extends ConsumerWidget {
   }
 
   /// SNS投稿処理
-  void _handleSocialPost(
+  Future<void> _handleSocialPost(
     WidgetRef ref,
     BuildContext context,
     SocialPlatformInfo platform,
     SocialPostData postData,
-  ) {
+  ) async {
     // 実際のアプリではここで各SNSのAPIを呼び出し
     // 今回はダミー処理
 
-    ref.read(pointProvider.notifier).addPoints(platform.points);
+    await ref.read(pointProvider.notifier).addPoints(platform.points);
     ref.read(socialPostDataProvider.notifier).state = null; // 投稿データをクリア
 
     ScaffoldMessenger.of(context).showSnackBar(

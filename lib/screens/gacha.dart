@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'setting.dart';
 
 // ===== ポイントシステム =====
@@ -49,21 +50,75 @@ class PointState {
 /// ポイント操作を管理するコントローラー
 class PointController extends StateNotifier<PointState> {
   Timer? _locationTimer;
+  Timer? _refreshTimer;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String _userId = '1'; // 固定のユーザーID
 
-  PointController() : super(const PointState());
+  PointController() : super(const PointState()) {
+    // 初期化時にFirestoreからポイントを取得
+    _fetchPointsFromFirestore();
+    
+    // 定期的にFirestoreからポイントを更新する（30秒ごと）
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _fetchPointsFromFirestore();
+    });
+  }
+
+  /// Firestoreからポイントを取得
+  Future<void> _fetchPointsFromFirestore() async {
+    try {
+      final pointDoc = await _firestore.collection('point').doc(_userId).get();
+      if (pointDoc.exists) {
+        final data = pointDoc.data();
+        // nowPointフィールドを参照する
+        if (data != null && data.containsKey('nowPoint')) {
+          state = state.copyWith(currentPoints: data['nowPoint'] as int);
+        } else if (data != null && data.containsKey('totalPoint')) {
+          // 互換性のため、totalPointも確認
+          state = state.copyWith(currentPoints: data['totalPoint'] as int);
+        }
+      }
+    } catch (e) {
+      debugPrint('Firestoreからポイント取得エラー: $e');
+    }
+  }
 
   /// ポイントを追加する
-  void addPoints(int points) {
-    state = state.copyWith(currentPoints: state.currentPoints + points);
+  Future<void> addPoints(int points) async {
+    final newPoints = state.currentPoints + points;
+    state = state.copyWith(currentPoints: newPoints);
+    
+    // Firestoreのポイントを更新
+    await _updateFirestorePoints(newPoints);
   }
 
   /// ポイントを消費する（ガチャ用）
-  bool consumePoints(int points) {
+  Future<bool> consumePoints(int points) async {
     if (state.currentPoints >= points) {
-      state = state.copyWith(currentPoints: state.currentPoints - points);
+      final newPoints = state.currentPoints - points;
+      state = state.copyWith(currentPoints: newPoints);
+      
+      // Firestoreのポイントを更新
+      await _updateFirestorePoints(newPoints);
       return true;
     }
     return false;
+  }
+  
+  /// Firestoreのポイントを更新する
+  Future<void> _updateFirestorePoints(int newPoints) async {
+    try {
+      final pointsRef = _firestore.collection('point').doc(_userId);
+      
+      // nowPointフィールドを更新する
+      await pointsRef.set({
+        'nowPoint': newPoints,
+        'totalPoint': newPoints, // 互換性のために両方更新
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestoreポイント更新エラー: $e');
+    }
   }
 
   /// エラーメッセージをクリア
@@ -152,6 +207,7 @@ class PointController extends StateNotifier<PointState> {
   @override
   void dispose() {
     _locationTimer?.cancel();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 }
@@ -923,13 +979,16 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
   }
 
   /// 1回ガチャを実行
-  void _performSingleGacha() {
+  Future<void> _performSingleGacha() async {
     final gachaItems = ref.read(gachaItemsProvider);
     final gachaConfig = ref.read(gachaConfigProvider);
 
-    if (!ref
+    // ポイント消費処理を非同期で行う
+    final success = await ref
         .read(pointProvider.notifier)
-        .consumePoints(gachaConfig.singleCost)) {
+        .consumePoints(gachaConfig.singleCost);
+        
+    if (!success) {
       return;
     }
 
@@ -945,7 +1004,7 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
   }
 
   /// 10連ガチャを実行
-  void _performMultiGacha() {
+  Future<void> _performMultiGacha() async {
     final gachaItems = ref.read(gachaItemsProvider);
     final gachaConfig = ref.read(gachaConfigProvider);
     final pointState = ref.read(pointProvider);
@@ -959,7 +1018,10 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
 
     final totalCost = actualMultiCount * gachaConfig.singleCost;
 
-    if (!ref.read(pointProvider.notifier).consumePoints(totalCost)) {
+    // ポイント消費処理を非同期で行う
+    final success = await ref.read(pointProvider.notifier).consumePoints(totalCost);
+    
+    if (!success) {
       return;
     }
 
