@@ -63,6 +63,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '145919437375',
     projectId: 'takizawa-hackathon-vol8',
     storageBucket: 'takizawa-hackathon-vol8.firebasestorage.app',
+    iosClientId: '145919437375-u5qimfa134uh4c88taa0iene4b1ks020.apps.googleusercontent.com',
     iosBundleId: 'com.example.takizawaHackathonVol8',
   );
+
 }

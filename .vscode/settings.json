@@ -6,5 +6,6 @@
     "dart.previewFlutterUiGuidesCustomTracking": true,
     "dart.hotReloadOnSave": "all",
     "dart.debugExternalPackageLibraries": false,
-    "dart.debugSdkLibraries": false
+    "dart.debugSdkLibraries": false,
+    "java.configuration.updateBuildConfiguration": "interactive"
 }
