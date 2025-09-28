@@ -1,0 +1,10 @@
+{
+    "dart.showTodos": false,
+    "dart.flutterSdkPath": "C:\\Users\\xiaox\\takizawa_hackathon_vol8\\flutter",
+    "dart.openDevTools": "flutter",
+    "dart.previewFlutterUiGuides": true,
+    "dart.previewFlutterUiGuidesCustomTracking": true,
+    "dart.hotReloadOnSave": "all",
+    "dart.debugExternalPackageLibraries": false,
+    "dart.debugSdkLibraries": false
+}

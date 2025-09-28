@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "145919437375",
+    "project_id": "takizawa-hackathon-vol8",
+    "storage_bucket": "takizawa-hackathon-vol8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:145919437375:android:847e515e0f555af7f2268a",
+        "android_client_info": {
+          "package_name": "com.example.takizawa_hackathon_vol8"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_TSYaCsKtC01mixZtzLH-U-WNHA2igW0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
