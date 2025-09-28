@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../service/location_service_lite.dart';
 import '../../service/firestore_service_lite.dart';
 import '../../service/local_storage_service_lite.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 軽量版位置情報設定画面
 class LocationScreenLite extends ConsumerStatefulWidget {
