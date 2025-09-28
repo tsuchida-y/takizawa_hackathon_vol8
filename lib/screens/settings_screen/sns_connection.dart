@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// SNS連携の種類
 enum SNSType {
-  google('Google', 'lib/icon/logo-black.png', Color(0xFF4285F4)),
-  x('X (Twitter)', null, Color(0xFF000000)),
+  google('Google', 'lib/icon/ios_light_rd_na@3x.png', Color(0xFF4285F4)),
+  x('X (Twitter)', 'lib/icon/X_Logo.png', Color(0xFF000000)),
   instagram(
     'Instagram',
     'lib/icon/Instagram_Glyph_Gradient.png',
