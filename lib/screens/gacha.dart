@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'setting.dart';
 
 // ===== ポイントシステム =====
 
@@ -11,12 +13,16 @@ class PointState {
   final bool isLoading; // ポイント操作中のローディング状態
   final String? errorMessage; // エラーメッセージ（オプション）
   final bool isLocationTrackingEnabled; // 現在地追跡機能のON/OFF状態
+  final DateTime? lastLocationUpdateTime; // 最後の位置情報更新時刻
+  final bool isAppInForeground; // アプリがフォアグラウンドにあるかどうか
 
   const PointState({
     this.currentPoints = 1000, // 初期ポイント
     this.isLoading = false,
     this.errorMessage,
     this.isLocationTrackingEnabled = false,
+    this.lastLocationUpdateTime,
+    this.isAppInForeground = true,
   });
 
   PointState copyWith({
@@ -24,6 +30,8 @@ class PointState {
     bool? isLoading,
     String? errorMessage,
     bool? isLocationTrackingEnabled,
+    DateTime? lastLocationUpdateTime,
+    bool? isAppInForeground,
   }) {
     return PointState(
       currentPoints: currentPoints ?? this.currentPoints,
@@ -31,12 +39,17 @@ class PointState {
       errorMessage: errorMessage ?? this.errorMessage,
       isLocationTrackingEnabled:
           isLocationTrackingEnabled ?? this.isLocationTrackingEnabled,
+      lastLocationUpdateTime:
+          lastLocationUpdateTime ?? this.lastLocationUpdateTime,
+      isAppInForeground: isAppInForeground ?? this.isAppInForeground,
     );
   }
 }
 
 /// ポイント操作を管理するコントローラー
 class PointController extends StateNotifier<PointState> {
+  Timer? _locationTimer;
+
   PointController() : super(const PointState());
 
   /// ポイントを追加する
@@ -60,9 +73,86 @@ class PointController extends StateNotifier<PointState> {
 
   /// 位置情報追跡の有効/無効を切り替え
   void toggleLocationTracking() {
+    final newEnabled = !state.isLocationTrackingEnabled;
+
+    if (newEnabled) {
+      _startLocationTracking();
+    } else {
+      _stopLocationTracking();
+    }
+
     state = state.copyWith(
-      isLocationTrackingEnabled: !state.isLocationTrackingEnabled,
+      isLocationTrackingEnabled: newEnabled,
+      lastLocationUpdateTime: newEnabled ? DateTime.now() : null,
     );
+  }
+
+  /// 位置情報追跡を開始
+  void _startLocationTracking() {
+    _locationTimer?.cancel();
+    // フォアグラウンドの時のみリアルタイムでポイント追加
+    if (state.isAppInForeground) {
+      _locationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        // 1秒ごとに1ポイント追加
+        addPoints(1);
+        state = state.copyWith(lastLocationUpdateTime: DateTime.now());
+      });
+    } else {
+      // バックグラウンドの場合は時刻のみ更新
+      state = state.copyWith(lastLocationUpdateTime: DateTime.now());
+    }
+  }
+
+  /// 位置情報追跡を停止
+  void _stopLocationTracking() {
+    _locationTimer?.cancel();
+    _locationTimer = null;
+  }
+
+  /// アプリがバックグラウンドに移行する際の処理
+  void handleAppPause() {
+    if (state.isLocationTrackingEnabled) {
+      _locationTimer?.cancel(); // リアルタイム更新を停止
+      state = state.copyWith(
+        lastLocationUpdateTime: DateTime.now(),
+        isAppInForeground: false,
+      );
+    }
+  }
+
+  /// アプリがフォアグラウンドに復帰した際の処理
+  void handleAppResume() {
+    if (state.isLocationTrackingEnabled &&
+        state.lastLocationUpdateTime != null) {
+      final now = DateTime.now();
+      final elapsed = now.difference(state.lastLocationUpdateTime!);
+      final secondsElapsed = elapsed.inSeconds;
+
+      if (secondsElapsed > 0) {
+        // 経過時間分のポイントを一括追加
+        addPoints(secondsElapsed);
+      }
+
+      // フォアグラウンド状態に戻し、リアルタイム更新を再開
+      state = state.copyWith(
+        lastLocationUpdateTime: now,
+        isAppInForeground: true,
+      );
+
+      // リアルタイム更新を再開
+      if (state.isLocationTrackingEnabled) {
+        _startLocationTracking();
+      }
+    } else {
+      // 位置情報追跡が無効でもフォアグラウンド状態は更新
+      state = state.copyWith(isAppInForeground: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
   }
 }
 
@@ -659,154 +749,166 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => _showSettingsDialog(context),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingScreen()),
+              );
+            },
           ),
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // コンテンツ領域
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // ガチャマシンのアニメーション
+              GachaAnimation(
+                isSpinning: _isSpinning,
+                currentPoints: pointState.currentPoints,
+                onAnimationComplete: _onAnimationComplete,
+              ),
+
+              const SizedBox(height: 40),
+
+              // 詳細ボタン
+              OutlinedButton.icon(
+                onPressed: () => _showGachaDetailsDialog(context),
+                icon: const Icon(Icons.info_outline, size: 18),
+                label: const Text('詳細'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                  side: const BorderSide(color: Colors.blue),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // ガチャボタン（横並び）
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
                   children: [
-                    const SizedBox(height: 40),
-
-                    // ガチャマシンのアニメーション（ポイント表示付き）
-                    GachaAnimation(
-                      isSpinning: _isSpinning,
-                      currentPoints: pointState.currentPoints,
-                      onAnimationComplete: _onAnimationComplete,
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // ガチャボタン
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Column(
-                        children: [
-                          // 1回ガチャボタン
-                          Container(
-                            width: double.infinity,
-                            height: 56,
-                            margin: const EdgeInsets.only(bottom: 12),
-                            child: ElevatedButton(
-                              onPressed:
-                                  _isSpinning ||
-                                      pointState.currentPoints <
-                                          gachaConfig.singleCost
-                                  ? null
-                                  : _performSingleGacha,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    pointState.currentPoints >=
-                                        gachaConfig.singleCost
-                                    ? Colors.blue
-                                    : Colors.grey.shade400,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(28),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  if (_isSpinning)
-                                    const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                      ),
-                                    )
-                                  else ...[
-                                    const Icon(Icons.casino, size: 20),
-                                    const SizedBox(width: 8),
+                    // 1回ガチャボタン
+                    Expanded(
+                      child: Container(
+                        height: 75, // 50 * 1.5 = 75
+                        margin: const EdgeInsets.only(right: 8),
+                        child: ElevatedButton(
+                          onPressed:
+                              _isSpinning ||
+                                  pointState.currentPoints <
+                                      gachaConfig.singleCost
+                              ? null
+                              : _performSingleGacha,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                pointState.currentPoints >=
+                                    gachaConfig.singleCost
+                                ? Colors.blue
+                                : Colors.grey.shade400,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: _isSpinning
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.casino, size: 16),
+                                    const SizedBox(height: 2),
                                     Text(
-                                      '1回 (${gachaConfig.singleCost}pt)',
+                                      '1回',
                                       style: const TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          // 10連ガチャボタン
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed:
-                                  _isSpinning ||
-                                      _getMaxMultiCount(
-                                            pointState,
-                                            gachaConfig,
-                                          ) ==
-                                          0
-                                  ? null
-                                  : _performMultiGacha,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    _getMaxMultiCount(pointState, gachaConfig) >
-                                        0
-                                    ? Colors.orange
-                                    : Colors.grey.shade400,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(28),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  if (_isSpinning)
-                                    const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                      ),
-                                    )
-                                  else ...[
-                                    const Icon(Icons.casino, size: 20),
-                                    const SizedBox(width: 8),
                                     Text(
-                                      '${_getMaxMultiCount(pointState, gachaConfig)}回 (${_getMaxMultiCount(pointState, gachaConfig) * gachaConfig.singleCost}pt)',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      '${gachaConfig.singleCost}pt',
+                                      style: const TextStyle(fontSize: 10),
                                     ),
                                   ],
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                                ),
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 40),
+                    // 複数回ガチャボタン
+                    Expanded(
+                      child: Container(
+                        height: 75, // 50 * 1.5 = 75
+                        margin: const EdgeInsets.only(left: 8),
+                        child: ElevatedButton(
+                          onPressed:
+                              _isSpinning ||
+                                  _getMaxMultiCount(pointState, gachaConfig) ==
+                                      0
+                              ? null
+                              : _performMultiGacha,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                _getMaxMultiCount(pointState, gachaConfig) > 0
+                                ? Colors.orange
+                                : Colors.grey.shade400,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: _isSpinning
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.casino, size: 16),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${_getMaxMultiCount(pointState, gachaConfig)}回',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${_getMaxMultiCount(pointState, gachaConfig) * gachaConfig.singleCost}pt',
+                                      style: const TextStyle(fontSize: 10),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -906,6 +1008,9 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
   /// ガチャ詳細ダイアログを表示（排出確率と景品内容）
   void _showGachaDetailsDialog(BuildContext context) {
     final gachaItems = ref.read(gachaItemsProvider);
+    // 排出確率の低い順（レアリティの高い順）にソート
+    final sortedGachaItems = List<GachaItem>.from(gachaItems)
+      ..sort((a, b) => a.probability.compareTo(b.probability));
     final gachaConfig = ref.read(gachaConfigProvider);
 
     showDialog(
@@ -935,7 +1040,7 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
                 child: Column(
                   children: [
                     const Text(
-                      '料金',
+                      '必要ポイント',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -965,9 +1070,9 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: gachaItems.length,
+                  itemCount: sortedGachaItems.length,
                   itemBuilder: (context, index) {
-                    final item = gachaItems[index];
+                    final item = sortedGachaItems[index];
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
@@ -1049,30 +1154,6 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// 設定ダイアログを表示
-  void _showSettingsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('設定'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(leading: Icon(Icons.account_circle), title: Text('アカウント')),
-            ListTile(leading: Icon(Icons.notifications), title: Text('通知')),
-            ListTile(leading: Icon(Icons.help), title: Text('ヘルプ')),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('閉じる'),
-          ),
-        ],
       ),
     );
   }

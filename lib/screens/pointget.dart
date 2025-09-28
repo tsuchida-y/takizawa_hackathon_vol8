@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'gacha.dart'; // ポイントシステムを共有するためのインポート
+import 'setting.dart';
 
 /// ポイント獲得アクションの種類を定義する列挙型
 /// 各アクションに対応するポイント獲得手段を区別し、地域活性化を促進する
@@ -30,12 +31,10 @@ class PointAction {
 }
 
 /// SNSプラットフォームの種類を定義する列挙型
-/// 各プラットフォームでのポイント獲得機能を管理し、地域情報の拡散を促進
 enum SocialPlatform {
   twitter, // X（旧Twitter）での投稿・シェア
-  youtube, // YouTubeでの動画投稿・コメント
   instagram, // Instagramでの写真投稿・ストーリーズ
-  other, // その他のSNSプラットフォーム（LINEなど）
+  facebook, // Facebookでの投稿・シェア
 }
 
 /// SNSプラットフォームの情報を格納するクラス
@@ -79,6 +78,17 @@ final pointActionsProvider = Provider<List<PointAction>>((ref) {
   ];
 });
 
+/// SNS投稿データのモデル
+class SocialPostData {
+  final String content;
+  final String? imagePath;
+
+  const SocialPostData({required this.content, this.imagePath});
+}
+
+/// SNS投稿状態のプロバイダー
+final socialPostDataProvider = StateProvider<SocialPostData?>((ref) => null);
+
 /// SNSプラットフォームのサンプルデータ
 final socialPlatformsProvider = Provider<List<SocialPlatformInfo>>((ref) {
   return const [
@@ -99,15 +109,7 @@ final socialPlatformsProvider = Provider<List<SocialPlatformInfo>>((ref) {
       iconPath: 'lib/icon/Instagram_Glyph_Gradient.png',
     ),
     SocialPlatformInfo(
-      platform: SocialPlatform.other,
-      name: 'LINE',
-      icon: Icons.chat,
-      points: 45,
-      color: Colors.green,
-      iconPath: 'lib/icon/LINE_Brand_icon.png',
-    ),
-    SocialPlatformInfo(
-      platform: SocialPlatform.youtube,
+      platform: SocialPlatform.facebook,
       name: 'Facebook',
       icon: Icons.facebook,
       points: 55,
@@ -125,7 +127,6 @@ class PointGetScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pointState = ref.watch(pointProvider);
     final pointActions = ref.watch(pointActionsProvider);
-    final socialPlatforms = ref.watch(socialPlatformsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -158,16 +159,23 @@ class PointGetScreen extends ConsumerWidget {
                   ),
                   const Expanded(
                     child: Text(
-                      'Pt',
+                      'ポイントゲット',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                       textAlign: TextAlign.center,
                     ),
                   ),
                   IconButton(
-                    onPressed: () => _showSettingsDialog(context),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SettingScreen(),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.settings),
                   ),
                 ],
@@ -239,7 +247,7 @@ class PointGetScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '1h 0.1pt',
+                                  '1s 1pt',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey.shade600,
@@ -363,7 +371,7 @@ class PointGetScreen extends ConsumerWidget {
 
                     const SizedBox(height: 20),
 
-                    // SNSセクション
+                    // SNS投稿セクション
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16),
                       width: double.infinity,
@@ -383,92 +391,33 @@ class PointGetScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'SNS',
+                            'SNS投稿',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 16),
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  childAspectRatio: 3,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
+
+                          // 投稿ボタン
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () =>
+                                  _showSocialPostDialog(context, ref),
+                              icon: const Icon(Icons.edit, size: 20),
+                              label: const Text('投稿を作成'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
                                 ),
-                            itemCount: socialPlatforms.length,
-                            itemBuilder: (context, index) {
-                              final platform = socialPlatforms[index];
-                              return InkWell(
-                                onTap: () =>
-                                    _handleSocialAction(ref, context, platform),
-                                borderRadius: BorderRadius.circular(8),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 24,
-                                        height: 24,
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                        child: platform.iconPath != null
-                                            ? ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                                child: Image.asset(
-                                                  platform.iconPath!,
-                                                  width: 24,
-                                                  height: 24,
-                                                  fit: BoxFit.contain,
-                                                  errorBuilder:
-                                                      (
-                                                        context,
-                                                        error,
-                                                        stackTrace,
-                                                      ) {
-                                                        return Icon(
-                                                          platform.icon,
-                                                          color: platform.color,
-                                                          size: 16,
-                                                        );
-                                                      },
-                                                ),
-                                              )
-                                            : Icon(
-                                                platform.icon,
-                                                color: platform.color,
-                                                size: 16,
-                                              ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          platform.name,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -500,40 +449,171 @@ class PointGetScreen extends ConsumerWidget {
     );
   }
 
-  void _handleSocialAction(
-    WidgetRef ref,
-    BuildContext context,
-    SocialPlatformInfo platform,
-  ) {
-    ref.read(pointProvider.notifier).addPoints(platform.points);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${platform.name}でコメント投稿完了！+${platform.points}pt獲得'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
+  /// SNS投稿ダイアログを表示
+  void _showSocialPostDialog(BuildContext context, WidgetRef ref) {
+    final TextEditingController contentController = TextEditingController();
+    String? selectedImagePath;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('SNS投稿作成'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 投稿内容入力
+                TextField(
+                  controller: contentController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: '投稿内容',
+                    hintText: '地域の素敵な情報をシェアしよう！',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 写真選択ボタン
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          // 実際のアプリではimage_pickerを使用
+                          setState(() {
+                            selectedImagePath = 'ダミー画像パス';
+                          });
+                        },
+                        icon: const Icon(Icons.photo),
+                        label: Text(
+                          selectedImagePath != null ? '画像選択済み' : '画像を選択',
+                        ),
+                      ),
+                    ),
+                    if (selectedImagePath != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            selectedImagePath = null;
+                          });
+                        },
+                        icon: const Icon(Icons.close, color: Colors.red),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: contentController.text.isNotEmpty
+                  ? () {
+                      final postData = SocialPostData(
+                        content: contentController.text,
+                        imagePath: selectedImagePath,
+                      );
+                      ref.read(socialPostDataProvider.notifier).state =
+                          postData;
+                      Navigator.of(context).pop();
+                      _showSocialPlatformSelection(context, ref, postData);
+                    }
+                  : null,
+              child: const Text('次へ'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _showSettingsDialog(BuildContext context) {
+  /// SNSプラットフォーム選択ダイアログを表示
+  void _showSocialPlatformSelection(
+    BuildContext context,
+    WidgetRef ref,
+    SocialPostData postData,
+  ) {
+    final socialPlatforms = ref.read(socialPlatformsProvider);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('設定'),
-        content: const Column(
+        title: const Text('投稿先を選択'),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(leading: Icon(Icons.account_circle), title: Text('アカウント')),
-            ListTile(leading: Icon(Icons.notifications), title: Text('通知')),
-            ListTile(leading: Icon(Icons.help), title: Text('ヘルプ')),
-          ],
+          children: socialPlatforms.map((platform) {
+            return ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: platform.color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: platform.iconPath != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.asset(
+                          platform.iconPath!,
+                          width: 24,
+                          height: 24,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              platform.icon,
+                              color: platform.color,
+                              size: 20,
+                            );
+                          },
+                        ),
+                      )
+                    : Icon(platform.icon, color: platform.color, size: 20),
+              ),
+              title: Text(platform.name),
+              subtitle: Text('+${platform.points}pt'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _handleSocialPost(ref, context, platform, postData);
+              },
+            );
+          }).toList(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('閉じる'),
+            child: const Text('キャンセル'),
           ),
         ],
+      ),
+    );
+  }
+
+  /// SNS投稿処理
+  void _handleSocialPost(
+    WidgetRef ref,
+    BuildContext context,
+    SocialPlatformInfo platform,
+    SocialPostData postData,
+  ) {
+    // 実際のアプリではここで各SNSのAPIを呼び出し
+    // 今回はダミー処理
+
+    ref.read(pointProvider.notifier).addPoints(platform.points);
+    ref.read(socialPostDataProvider.notifier).state = null; // 投稿データをクリア
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${platform.name}への投稿が完了しました！+${platform.points}pt獲得'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
