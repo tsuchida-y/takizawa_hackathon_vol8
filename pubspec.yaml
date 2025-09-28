@@ -27,16 +27,19 @@ dependencies:
   # Permissions
   permission_handler: ^11.0.1
   
-  # Device info
+  # Android最適化：段階的機能復元
   device_info_plus: ^9.1.0
-  
-  # Local notifications
   flutter_local_notifications: ^17.2.3
 
   firebase_core: ^4.1.1
   cloud_firestore: ^6.0.2
   firebase_auth: ^6.1.0
   firebase_storage: ^13.0.2
+  
+  geolocator: ^11.0.0  # Step 3: 位置情報サービス復元 ✅
+  geocoding: ^3.0.0    # Step 4: ジオコーディング機能追加 ✅
+  cloud_firestore: ^5.5.0  # Step 6: Cloud Firestore軽量統合
+  shared_preferences: ^2.2.2  # ローカル代替ストレージ
 
 dev_dependencies:
   flutter_test:

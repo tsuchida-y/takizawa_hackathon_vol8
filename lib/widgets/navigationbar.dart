@@ -4,6 +4,8 @@ import 'package:takizawa_hackathon_vol8/screens/ranking.dart';
 import 'package:takizawa_hackathon_vol8/screens/profile.dart';
 import 'package:takizawa_hackathon_vol8/screens/gacha.dart';
 import 'package:takizawa_hackathon_vol8/screens/pointget.dart';
+import '../screens/settings_screen/location.dart';
+import '../service/firebase_service_lite.dart';
 
 /// ナビゲーションのインデックス
 enum NavIndex { home, ranking, profile, menu }
@@ -87,6 +89,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   }
 
   Widget _buildCurrentScreen() {
+    // 元のUI画面に復元
     switch (_currentIndex) {
       case NavIndex.home:
         return const ProfileScreen(); // ホーム画面としてプロフィール画面を使用
@@ -109,5 +112,222 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
       // 画面遷移時のアニメーション効果が必要な場合はここに追加
     }
+  }
+}
+
+// 元のUI画面に復元（軽量版クラス削除）
+//TODO:ここからしたが漆沢くんのもの
+
+
+
+
+
+class MenuScreenLite extends StatelessWidget {
+  const MenuScreenLite({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('設定'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        foregroundColor: Colors.black87,
+      ),
+      backgroundColor: Colors.grey[50],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 位置情報設定カード
+            Card(
+              elevation: 0,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: Colors.grey.shade200,
+                  width: 1,
+                ),
+              ),
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LocationScreen(),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // アイコン部分
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.location_on_outlined,
+                          color: Colors.blue.shade600,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      
+                      // テキスト部分
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '位置情報',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'GPS・位置情報設定',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // 矢印アイコン
+                      Icon(
+                        Icons.chevron_right,
+                        color: Colors.grey.shade400,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Firebase状態表示
+            Consumer(
+              builder: (context, ref, child) {
+                final firebaseInfo = ref.watch(firebaseConnectionInfoProvider);
+                final status = firebaseInfo['status'] as String;
+                
+                return Card(
+                  elevation: 0,
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: Colors.grey.shade200,
+                      width: 1,
+                    ),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Firebase接続情報'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('状態: ${firebaseInfo['status']}'),
+                              Text('メッセージ: ${firebaseInfo['message']}'),
+                              if (firebaseInfo['project_id'] != null)
+                                Text('プロジェクトID: ${firebaseInfo['project_id']}'),
+                              Text('アプリ数: ${firebaseInfo['apps_count']}'),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('閉じる'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          // アイコン部分
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: status == 'connected' ? Colors.green.shade50 : 
+                                     status == 'error' ? Colors.red.shade50 : Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              status == 'connected' ? Icons.cloud_done : 
+                              status == 'error' ? Icons.cloud_off : Icons.cloud_outlined,
+                              color: status == 'connected' ? Colors.green.shade600 : 
+                                     status == 'error' ? Colors.red.shade600 : Colors.orange.shade600,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          
+                          // テキスト部分
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Firebase状態',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  firebaseInfo['message'] as String,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // ステータスアイコン
+                          Icon(
+                            status == 'connected' ? Icons.check_circle : Icons.info_outline,
+                            color: status == 'connected' ? Colors.green : Colors.grey.shade400,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
