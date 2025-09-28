@@ -1,15 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'widgets/navigationbar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Android最適化：重い初期化を段階的に無効化
+  // Android最適化：段階的初期化（Step 5: Firebase Core追加）
   if (!kIsWeb) {
-    // とりあえず全ての重い処理をスキップ
     debugPrint('Android軽量モードで起動...');
+    
+    try {
+      // Firebase初期化（軽量）
+      debugPrint('Firebase初期化開始...');
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      debugPrint('Firebase初期化完了');
+    } catch (e) {
+      debugPrint('Firebase初期化エラー（続行）: $e');
+      // エラーでも続行（Firebase無しでも動作）
+    }
   }
   
   runApp(
