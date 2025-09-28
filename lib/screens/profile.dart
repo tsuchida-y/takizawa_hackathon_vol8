@@ -168,11 +168,34 @@ final heatmapOffsetProvider = StateProvider<int>((ref) {
 // ===== ウィジェット =====
 
 /// ユーザープロフィール表示ウィジェット
-class UserProfileSection extends ConsumerWidget {
+class UserProfileSection extends ConsumerStatefulWidget {
   const UserProfileSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UserProfileSection> createState() => _UserProfileSectionState();
+}
+
+class _UserProfileSectionState extends ConsumerState<UserProfileSection> {
+  @override
+  void initState() {
+    super.initState();
+    // 画面表示時にプロフィールを再読み込み
+    Future.microtask(() => _refreshProfile());
+  }
+  
+  // プロフィールを再読み込み
+  Future<void> _refreshProfile() async {
+    try {
+      await ref.read(sharedUserProfileProvider.notifier).refreshProfile();
+    } catch (e) {
+      debugPrint('プロフィール読み込みエラー: $e');
+    }
+  }
+  
+  // プロフィールデータの読み込み処理のみを残す
+
+  @override
+  Widget build(BuildContext context) {
     final profile = ref.watch(sharedUserProfileProvider);
     
     return Container(

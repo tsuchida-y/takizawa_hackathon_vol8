@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
-import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// 共通のユーザープロフィールモデル
 class UserProfile {
@@ -26,9 +26,9 @@ class UserProfile {
     required this.selfIntroduction,
     required this.registrationDate,
     this.profileImagePath,
-    this.totalPoints = 2548,
-    this.currentStreak = 12,
-    this.maxStreak = 45,
+    this.totalPoints = 0,
+    this.currentStreak = 0,
+    this.maxStreak = 0,
   });
 
   UserProfile copyWith({
@@ -71,51 +71,180 @@ class UserProfile {
   String get displayName {
     return nickname.isNotEmpty ? nickname : 'あなた';
   }
+  
+  /// Firestoreドキュメントからユーザープロフィールを生成
+  factory UserProfile.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return UserProfile(
+      nickname: data['nickname'] ?? '',
+      userId: doc.id,
+      email: data['email'] ?? '',
+      gender: data['gender'],
+      birthDate: data['birthDate'] != null 
+          ? (data['birthDate'] as Timestamp).toDate() 
+          : null,
+      selfIntroduction: data['selfIntroduction'] ?? '',
+      registrationDate: data['registrationDate'] != null
+          ? (data['registrationDate'] as Timestamp).toDate()
+          : DateTime.now(),
+      profileImagePath: data['profileImagePath'],
+      totalPoints: data['totalPoints'] ?? 0,
+      currentStreak: data['currentStreak'] ?? 0,
+      maxStreak: data['maxStreak'] ?? 0,
+    );
+  }
+  
+  /// Firestoreに保存するデータを生成
+  Map<String, dynamic> toFirestore() {
+    return {
+      'nickname': nickname,
+      'email': email,
+      'gender': gender,
+      'birthDate': birthDate != null ? Timestamp.fromDate(birthDate!) : null,
+      'selfIntroduction': selfIntroduction,
+      'registrationDate': Timestamp.fromDate(registrationDate),
+      'profileImagePath': profileImagePath,
+      'totalPoints': totalPoints,
+      'currentStreak': currentStreak,
+      'maxStreak': maxStreak,
+      'updatedAt': Timestamp.now(),
+    };
+  }
 }
 
 /// ユーザープロフィールのリポジトリ
 class UserProfileRepository {
-  /// 初期ニックネームを生成（TSU + 6桁の乱数）
-  String _generateInitialNickname() {
-    final random = Random();
-    final randomNumber = random.nextInt(999999).toString().padLeft(6, '0');
-    return 'TSU$randomNumber';
+  late final FirebaseFirestore _firestore;
+  
+  UserProfileRepository() {
+    try {
+      _firestore = FirebaseFirestore.instance;
+    } catch (e) {
+      debugPrint('Firebase初期化エラー: $e');
+      // エラー時はフィールドは未初期化のままになりますが、
+      // 各メソッドでnullチェックを行うので問題ありません
+    }
+  }  /// ユーザープロフィールを取得（Firestoreからのみ、固定ID「1」を使用）
+  Future<UserProfile> getUserProfile() async {
+    try {
+      // 固定のドキュメントID「1」を使用
+      const fixedUserId = '1';
+      
+      // Firestoreからプロフィールを取得
+      final doc = await _firestore.collection('users').doc(fixedUserId).get();
+      
+      // ドキュメントが存在する場合
+      if (doc.exists) {
+        debugPrint('Firestoreからユーザープロフィールを取得: ${doc.id}');
+        return UserProfile.fromFirestore(doc);
+      } else {
+        // ドキュメントが存在しない場合は新しいプロフィールを作成して保存
+        debugPrint('ユーザープロフィールが存在しないため、新規作成します');
+        final newProfile = _createInitialProfile(fixedUserId);
+        await _saveUserProfileToFirestore(newProfile);
+        return newProfile;
+      }
+    } catch (e) {
+      debugPrint('ユーザープロフィール取得エラー: $e');
+      // エラーが発生した場合は、初期プロフィールを返す
+      return _createInitialProfile('1');
+    }
   }
-
-  UserProfile getUserProfile() {
+  
+  /// 初期プロフィールを作成（固定ID「1」用）
+  UserProfile _createInitialProfile(String userId) {
     return UserProfile(
-      nickname: _generateInitialNickname(),
-      userId: '91nw8l6r',
+      nickname: 'TSU987148',
+      userId: userId,
       email: '',
       gender: '男性',
       birthDate: DateTime(2005, 5, 22),
       selfIntroduction: 'Name TSU******\njob 大学生',
-      registrationDate: DateTime(2024, 10, 14),
+      registrationDate: DateTime.now(),
       profileImagePath: null,
       totalPoints: 2548,
       currentStreak: 12,
       maxStreak: 45,
     );
   }
-
+  
+  /// ユーザープロフィールをFirestoreに保存
   Future<bool> saveUserProfile(UserProfile profile) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    debugPrint('プロフィールを保存しました: ${profile.nickname}');
-    return true;
+    try {
+      await _saveUserProfileToFirestore(profile);
+      debugPrint('プロフィールを保存しました: ${profile.nickname}');
+      return true;
+    } catch (e) {
+      debugPrint('プロフィール保存エラー: $e');
+      return false;
+    }
+  }
+  
+  /// Firestoreにプロフィールを保存する内部メソッド（固定ID「1」を使用）
+  Future<void> _saveUserProfileToFirestore(UserProfile profile) async {
+    // 常に固定のID「1」を使用
+    const fixedUserId = '1';
+    await _firestore.collection('users').doc(fixedUserId).set(
+      profile.toFirestore(),
+      SetOptions(merge: true),
+    );
   }
 
   Future<bool> checkUserIdAvailability(String userId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    final unavailableIds = ['admin', 'user', 'test', '91nw8l6r'];
-    return !unavailableIds.contains(userId.toLowerCase());
+    try {
+      final query = await _firestore
+          .collection('users')
+          .where('customId', isEqualTo: userId)
+          .limit(1)
+          .get();
+      
+      return query.docs.isEmpty;
+    } catch (e) {
+      debugPrint('ユーザーID重複チェックエラー: $e');
+      return false;
+    }
   }
+
+  // メソッドは下方に移動しました
 }
 
 /// ユーザープロフィールの状態管理
 class UserProfileNotifier extends StateNotifier<UserProfile> {
   final UserProfileRepository _repository;
+  bool _isLoading = false;
 
-  UserProfileNotifier(this._repository) : super(_repository.getUserProfile());
+  UserProfileNotifier(this._repository) : super(UserProfile(
+    nickname: '',
+    userId: '',
+    email: '',
+    selfIntroduction: '',
+    registrationDate: DateTime.now(),
+  )) {
+    _loadProfile();
+  }
+
+  /// プロフィールを読み込む
+  Future<void> _loadProfile() async {
+    if (_isLoading) return;
+    
+    _isLoading = true;
+    try {
+      final profile = await _repository.getUserProfile();
+      state = profile;
+      debugPrint('プロフィールを正常に読み込みました: ${profile.nickname}');
+    } catch (e) {
+      debugPrint('プロフィール読み込みエラー: $e');
+      // エラー発生時は状態を変更しない（初期状態のまま）
+      // ここではUIに表示するエラーメッセージなどを設定することもできます
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  /// プロフィールを再読み込み
+  Future<void> refreshProfile() async {
+    await _loadProfile();
+  }
 
   /// ニックネームを更新
   void updateNickname(String nickname) {
@@ -162,7 +291,11 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
 
   /// プロフィールを保存
   Future<bool> saveProfile() async {
-    return await _repository.saveUserProfile(state);
+    final result = await _repository.saveUserProfile(state);
+    if (result) {
+      await refreshProfile();
+    }
+    return result;
   }
 
   /// ユーザーIDの重複チェック
