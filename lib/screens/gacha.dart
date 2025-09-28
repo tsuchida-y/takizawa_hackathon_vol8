@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:takizawa_hackathon_vol8/screens/pointget.dart';
 import 'package:takizawa_hackathon_vol8/widgets/setting_button.dart';
+import 'package:takizawa_hackathon_vol8/providers/ticket_inventory_provider.dart';
 
 
 /// ガチャの景品レアリティを定義する列挙型
@@ -332,6 +333,144 @@ class _GachaAnimationState extends State<GachaAnimation>
       },
     );
   }
+
+
+
+  /// ソートボタンを構築
+  Widget _buildSortButton(String label, IconData icon, VoidCallback onPressed) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.blue.shade600,
+        side: BorderSide(color: Colors.blue.shade200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
+  /// チケットアイテムを構築
+  Widget _buildTicketItem(TicketInventoryItem ticketItem) {
+    final rarity = ticketItem.gachaItem.rarity;
+    final rarityColor = _getTicketRarityColor(rarity);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: rarityColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: rarityColor.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          // レアリティインジケーター
+          Container(
+            width: 4,
+            height: 40,
+            decoration: BoxDecoration(
+              color: rarityColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          
+          // チケットアイコン
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: rarityColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              Icons.card_giftcard,
+              size: 20,
+              color: rarityColor,
+            ),
+          ),
+          const SizedBox(width: 12),
+          
+          // チケット情報
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ticketItem.gachaItem.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _getTicketRarityText(rarity),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: rarityColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // 所持数表示
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: rarityColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '×${ticketItem.count}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// レアリティに対応する色を取得
+  Color _getTicketRarityColor(GachaRarity rarity) {
+    switch (rarity) {
+      case GachaRarity.common:
+        return Colors.grey;
+      case GachaRarity.rare:
+        return Colors.blue;
+      case GachaRarity.superRare:
+        return Colors.purple;
+      case GachaRarity.ultraRare:
+        return Colors.orange;
+    }
+  }
+
+  /// レアリティのテキストを取得
+  String _getTicketRarityText(GachaRarity rarity) {
+    switch (rarity) {
+      case GachaRarity.common:
+        return 'コモン';
+      case GachaRarity.rare:
+        return 'レア';
+      case GachaRarity.superRare:
+        return 'スーパーレア';
+      case GachaRarity.ultraRare:
+        return 'ウルトラレア';
+    }
+  }
 }
 
 /// ガチャ結果を表示するモーダルウィジェット
@@ -610,6 +749,11 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
 
                     const SizedBox(height: 40),
 
+                    // チケットインベントリセクション
+                    _buildTicketInventorySection(),
+
+                    const SizedBox(height: 40),
+
                     // ガチャボタン
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -810,8 +954,12 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
       _isSpinning = false;
     });
 
-    // 結果が存在する場合、モーダルを表示
+    // 結果が存在する場合、チケットをインベントリに追加してモーダルを表示
     if (_lastResults.isNotEmpty) {
+      // チケットをインベントリに追加
+      final items = _lastResults.map((result) => result.item).toList();
+      ref.read(ticketInventoryProvider.notifier).addTickets(items);
+      
       _showResultModal(_lastResults);
       // 結果表示後、結果データをクリア
       _lastResults = [];
@@ -830,24 +978,271 @@ class _GachaScreenState extends ConsumerState<GachaScreen> {
     );
   }
 
-  /// レアリティに対応する色を取得するヘルパーメソッド
-  /// ユーザー体験向上のため、視覚的にレアリティを区別する
-  Color _getRarityColor(GachaRarity rarity) {
+  /// チケットインベントリセクションを構築
+  Widget _buildTicketInventorySection() {
+    return Consumer(
+      builder: (context, ref, child) {
+        final inventory = ref.watch(ticketInventoryProvider);
+        
+        if (inventory.isEmpty) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.inventory_2_outlined,
+                  size: 48,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'チケットボックス',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'ガチャで獲得したチケットがここに保存されます',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ヘッダー
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.inventory_2,
+                      color: Colors.blue.shade600,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'チケットボックス',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${inventory.length}種類',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // ソートボタン
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    _buildSortButton(
+                      'レアリティ順',
+                      Icons.star,
+                      () => ref.read(ticketInventoryProvider.notifier).sortByRarity(),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildSortButton(
+                      '取得順',
+                      Icons.schedule,
+                      () => ref.read(ticketInventoryProvider.notifier).sortByDate(),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // チケットリスト
+              SizedBox(
+                height: 200,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: inventory.length,
+                  itemBuilder: (context, index) {
+                    final ticketItem = inventory[index];
+                    return _buildTicketItem(ticketItem);
+                  },
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// ソートボタンを構築
+  Widget _buildSortButton(String label, IconData icon, VoidCallback onPressed) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.blue.shade600,
+        side: BorderSide(color: Colors.blue.shade200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
+  /// チケットアイテムを構築
+  Widget _buildTicketItem(TicketInventoryItem ticketItem) {
+    final rarity = ticketItem.gachaItem.rarity;
+    final rarityColor = _getTicketRarityColor(rarity);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: rarityColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: rarityColor.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          // レアリティインジケーター
+          Container(
+            width: 4,
+            height: 40,
+            decoration: BoxDecoration(
+              color: rarityColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          
+          // チケットアイコン
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: rarityColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              Icons.card_giftcard,
+              size: 20,
+              color: rarityColor,
+            ),
+          ),
+          const SizedBox(width: 12),
+          
+          // チケット情報
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ticketItem.gachaItem.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _getTicketRarityText(rarity),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: rarityColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // 所持数表示
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: rarityColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '×${ticketItem.count}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// レアリティに対応する色を取得
+  Color _getTicketRarityColor(GachaRarity rarity) {
     switch (rarity) {
       case GachaRarity.common:
-        return Colors.grey; // コモン: グレー（一般的）
+        return Colors.grey;
       case GachaRarity.rare:
-        return Colors.blue; // レア: ブルー（珍しい）
+        return Colors.blue;
       case GachaRarity.superRare:
-        return Colors.purple; // スーパーレア: パープル（稀少）
+        return Colors.purple;
       case GachaRarity.ultraRare:
-        return Colors.orange; // ウルトラレア: オレンジ（最高級）
+        return Colors.orange;
     }
   }
 
-  /// レアリティに対応するテキストを取得するヘルパーメソッド
-  /// 日本語での表示用レアリティ名を提供
-  String _getRarityText(GachaRarity rarity) {
+  /// レアリティのテキストを取得
+  String _getTicketRarityText(GachaRarity rarity) {
     switch (rarity) {
       case GachaRarity.common:
         return 'コモン';
