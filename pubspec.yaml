@@ -40,6 +40,8 @@ dependencies:
   geocoding: ^3.0.0    # Step 4: ジオコーディング機能追加 ✅
   shared_preferences: ^2.2.2  # ローカル代替ストレージ
 
+  mockito: ^5.5.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
