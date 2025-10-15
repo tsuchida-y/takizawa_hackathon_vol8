@@ -572,7 +572,7 @@ class _PointHistoryHeatmapState extends ConsumerState<PointHistoryHeatmap> {
                     Text(
                       _getDisplayPeriodText(offset),
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 11,
                         color: Colors.grey.shade600,
                       ),
                     ),
