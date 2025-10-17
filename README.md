@@ -2,27 +2,16 @@
 
 ## アプリケーション画面
 
-<div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
-  <div style="text-align: center; width: 250px;">
-    <p><strong>ホーム画面</strong></p>
-    <img src="assets/screenshots/home_1.png" width="250" alt="ホーム画面">
-  </div>
-  <div style="text-align: center; width: 250px;">
-    <p><strong>ホーム画面</strong></p>
-    <img src="assets/screenshots/home_2.png" width="250" alt="ガチャ画面">
-  </div>
-  <div style="text-align: center; width: 250px;">
-    <p><strong>ランキング画面</strong></p>
-    <img src="assets/screenshots/ranking.png" width="250" alt="ランキング画面">
-  </div>
-  <div style="text-align: center; width: 250px;">
-    <p><strong>ポイント画面</strong></p>
-    <img src="assets/screenshots/point_get.png" width="250" alt="ポイント画面">
-  </div>
-  <div style="text-align: center; width: 250px;">
-    <p><strong>ガチャ画面</strong></p>
-    <img src="assets/screenshots/gatya.png" width="250" alt="ガチャ画面">
-  </div>
+<div align="center">
+
+| ホーム画面 | ホーム画面 |
+|:---:|:---:|
+| <img src="assets/screenshots/home_1.png" width="150" alt="ホーム画面"> | <img src="assets/screenshots/home_2.png" width="150" alt="ホーム画面"> |
+
+| ランキング画面 | ポイント画面 | ガチャ画面 |
+|:---:|:---:|:---:|
+| <img src="assets/screenshots/ranking.png" width="150" alt="ランキング画面"> | <img src="assets/screenshots/point_get.png" width="150" alt="ポイント画面"> | <img src="assets/screenshots/gatya.png" width="150" alt="ガチャ画面"> |
+
 </div>
 
 ## ハッカソンテーマ
